@@ -115,7 +115,7 @@ A picture to explain it: a sealed envelope with a signature on the **outside**. 
 ### 4.3 What the report shows (D13)
  
 - The attack works on plain CBC, and fails on Encrypt-then-MAC and on AES-GCM, because the server gives the same rejection every time. Both fixes are in code. If Tier 1 runs late, AES-GCM is explained in text only.
-- **One table or diagram of three server types** links the parts of the report:
+- **One table or diagram of three server types** links the parts of the report; the report-ready diagram is [server-types.svg](../figures/server-types.svg):
 | Server type | What the attacker sees | Oracle | Where in our work |
 |---|---|---|---|
 | 1. Different error messages (plain CBC) | Clear "padding OK / wrong" | Perfect | Tier 1 |

@@ -47,7 +47,7 @@ Read [report-notes.md](report-notes.md) first for the story and the claims to av
  
 **5. Tier 3: prior-aware attack (1.25).** The three baselines. What is ours and what is NCC 2023 (the posterior-threshold rule is theirs; our part is a non-uniform prior in it, on Canvel's Gaussian timing noise). Trigram prior. Baselines: Tier 2 test, NCC's method, Sequential Halving. Split method. Results at the same error rate, per band. Random-bytes control (expect no gain or a loss). One chart: success rate against query budget. **End with the limits:** when a prior helps and when it does not, easy block layout, American English, simulation only.
  
-**6. Countermeasures (0.5).** Why plain CBC is weak. Encrypt-then-MAC and AES-GCM: the attack fails on both. Table of the three server types (T13). Tier 3 does not show that these fixes are insufficient. If Tier 3 is dropped, the "noisy oracle" row of the table points to Tier 2 only.
+**6. Countermeasures (0.5).** Why plain CBC is weak. Encrypt-then-MAC and AES-GCM: the attack fails on both. Three-server-types table/diagram (T13; [SVG](../figures/server-types.svg)). Tier 3 does not show that these fixes are insufficient. If Tier 3 is dropped, the "noisy oracle" row points to Tier 2 only.
  
 **7. Conclusion (0.25).** One short paragraph, only our own numbers. Encryption alone is not enough; use authenticated encryption. Closing message: padding oracles are fixable, and where a leak remains, a good prior makes the attack cheaper.
  

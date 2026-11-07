@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="510" viewBox="0 0 1200 510" role="img" aria-labelledby="title description">
+  <title id="title">Three server behaviors and their oracle outcomes</title>
+  <desc id="description">Plain CBC exposes distinct padding errors and creates a perfect oracle. A server with a small timing difference creates a noisy oracle. Encrypt-then-MAC authenticates before decryption, while AES-GCM withholds plaintext until its tag is valid; both avoid exposing a padding oracle.</desc>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #172033; }
+    .title { font-size: 27px; font-weight: 700; }
+    .head { font-size: 15px; font-weight: 700; letter-spacing: 0.6px; fill: #536176; }
+    .name { font-size: 19px; font-weight: 700; }
+    .detail { font-size: 16px; }
+    .outcome { font-size: 18px; font-weight: 700; }
+    .subtle { font-size: 14px; fill: #536176; }
+  </style>
+  <rect width="1200" height="510" fill="#ffffff"/>
+  <text class="title" x="36" y="46">Three server behaviors, three oracle outcomes</text>
+
+  <text class="head" x="48" y="91">SERVER BEHAVIOR</text>
+  <text class="head" x="420" y="91">WHAT THE ATTACKER OBSERVES</text>
+  <text class="head" x="850" y="91">ORACLE / PROJECT</text>
+
+  <rect x="36" y="108" width="1128" height="108" rx="10" fill="#fff3ef" stroke="#f0c2b6"/>
+  <rect x="36" y="108" width="8" height="108" rx="4" fill="#c2412d"/>
+  <text class="name" x="62" y="144">1. Plain CBC</text>
+  <text class="detail" x="62" y="174">Different errors for valid</text>
+  <text class="detail" x="62" y="195">and invalid padding</text>
+  <text class="detail" x="420" y="153">Explicit “padding OK / wrong”</text>
+  <text class="detail" x="420" y="179">response reveals the padding result</text>
+  <rect x="850" y="132" width="138" height="34" rx="17" fill="#c2412d"/>
+  <text x="919" y="155" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">PERFECT ORACLE</text>
+  <text class="subtle" x="1003" y="154">Tier 1 works</text>
+
+  <rect x="36" y="228" width="1128" height="108" rx="10" fill="#fff8e8" stroke="#ecd49c"/>
+  <rect x="36" y="228" width="8" height="108" rx="4" fill="#a66a00"/>
+  <text class="name" x="62" y="264">2. Timing leak</text>
+  <text class="detail" x="62" y="294">Same outward error message</text>
+  <text class="detail" x="62" y="315">but processing time differs</text>
+  <text class="detail" x="420" y="273">Small time difference mixed</text>
+  <text class="detail" x="420" y="299">with noise; repeat measurements</text>
+  <rect x="850" y="252" width="138" height="34" rx="17" fill="#a66a00"/>
+  <text x="919" y="275" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">NOISY ORACLE</text>
+  <text class="subtle" x="1003" y="274">Tiers 2 and 3</text>
+
+  <rect x="36" y="348" width="1128" height="108" rx="10" fill="#edf8f1" stroke="#b7ddc4"/>
+  <rect x="36" y="348" width="8" height="108" rx="4" fill="#257447"/>
+  <text class="name" x="62" y="384">3. Authenticated</text>
+  <text class="detail" x="62" y="414">EtM checks MAC before decryption;</text>
+  <text class="detail" x="62" y="435">GCM releases plaintext only if tag valid</text>
+  <text class="detail" x="420" y="393">Uniform rejection; no plaintext</text>
+  <text class="detail" x="420" y="419">or padding-validity signal</text>
+  <rect x="850" y="372" width="138" height="34" rx="17" fill="#257447"/>
+  <text x="919" y="395" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">NO ORACLE</text>
+  <text class="subtle" x="1003" y="394">Attack fails</text>
+
+  <text class="subtle" x="36" y="486">Hiding the error message alone is not enough if timing still leaks information.</text>
+</svg>
