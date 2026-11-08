@@ -5,7 +5,7 @@
 **Audience:** Tier 2 owner (Hải), Tier 3 owners, report writer (Duy). <br>
 **Owner:** An Khánh (T2). **Last updated:** 08/11/2026.
 
-**Source read:** B. Canvel, A. Hiltgen, S. Vaudenay, M. Vuagnoux, "Password Interception in a SSL/TLS Channel", CRYPTO 2003. The IACR PDF link is behind a bot check, so the copy used is the author version on EPFL Infoscience (`CHVV03.ps`, TeX output dated 26/05/2003, 17 numbered pages). Section, figure and table numbers match the IACR copy; **page numbers below are those printed on this copy** and may differ by a page or so in the LNCS version.
+**Source read:** B. Canvel, A. Hiltgen, S. Vaudenay, M. Vuagnoux, "Password Interception in a SSL/TLS Channel", CRYPTO 2003, LNCS 2729, pp. 581–597 (the published version, as in the IACR PDF). **Page numbers below are from this version.** Every fact was first read in the author copy on EPFL Infoscience (`CHVV03.ps`, 26/05/2003), then checked again against the published text; the two agree on every fact below.
 
 Status: **OK** = the paper says this. **Changed** = our docs need a correction. **Our reading** = the paper does not say it in words, but it follows from the paper.
 
@@ -13,16 +13,16 @@ Status: **OK** = the paper says this. **Changed** = our docs need a correction. 
 
 | # | Fact we use | What the paper says | Where | Status |
 |---|---|---|---|---|
-| F1 | μ_R ≈ 23.63, μ_W ≈ 21.57 | Mean server answer time for a MAC error (padding right) and a padding error (padding wrong). | Sec. 2.2, p. 5 | OK |
-| F2 | σ ≈ 1.86 | The two spreads are **different**: σ_R ≈ 1.48, σ_W ≈ 1.86. The paper then **takes σ = σ_W ≈ 1.86 for both** (Conjecture 1: two normal distributions with the same σ). | Sec. 2.1 (Conj. 1), Sec. 2.2, p. 4–5 | OK, add the note: using 1.86 for both is Canvel's own simplification |
-| F3 | Unit of the timing values | **No unit is given**, in the text or on the axis of Fig. 3 (x-axis 18–32, y-axis = number of error messages). Measured on a LAN, through two switches and a Linux PC firewall. | Sec. 2.2, Fig. 3, footnote 6 | OK: keep "time units" |
+| F1 | μ_R ≈ 23.63, μ_W ≈ 21.57 | Mean server answer time for a MAC error (padding right) and a padding error (padding wrong). | Sec. 2.2, p. 585 | OK |
+| F2 | σ ≈ 1.86 | The two spreads are **different**: σ_R ≈ 1.48, σ_W ≈ 1.86. The paper then **takes σ = σ_W ≈ 1.86 for both** (Conjecture 1: two normal distributions with the same σ). | Sec. 2.1 (Conj. 1), Sec. 2.2, pp. 584–585 | OK, add the note: using 1.86 for both is Canvel's own simplification |
+| F3 | Unit of the timing values | The text gives no unit, but the x-axis of Fig. 3 is labelled **"Time (in 1/1000s)"**, so the values are in **milliseconds** (axis 18–32 ms; y-axis = number of `decryption_failed` and `bad_mac_error` messages). Measured on a LAN, through two switches and a Linux PC firewall. | Fig. 3, p. 586; Sec. 2.2, footnote 6 | **Changed**: the unit is ms (1/1000 s). Our code and docs still say the unit is not confirmed |
 | F4 | Outlier cut B | Answers longer than B are ignored (query repeated). Table 1 uses the heuristic value B = 32.93. | Sec. 2.1, Fig. 4–5, Table 1 caption | New fact, optional for T6/T7 |
-| F5 | C₀ = 31 | C₀ = average number of candidate trials per block (sum over the b bytes), for the dictionary ordered by probability. They **computed** 31 and then **confirmed** it with an implementation of DecryptBlock4. The best possible is ⌈log₂ D⌉ = 20 yes/no questions, so the overhead is 11. | Sec. 4.2 (definition), Sec. 4.3, p. 12 | OK |
+| F5 | C₀ = 31 | C₀ = average number of candidate trials per block (sum over the b bytes), for the dictionary ordered by probability. They **computed** 31 and then **confirmed** it with an implementation of DecryptBlock4. The best possible is ⌈log₂ D⌉ = 20 yes/no questions, so the overhead is 11. | Sec. 4.2 (definition), Sec. 4.3, pp. 591–592 | OK |
 | F6 | C₀ for a random block | Uniform bytes: C₀ = b(\|Z\|−1)/2 + b, so 1028 for \|Z\| = 256 and b = 8. | Sec. 4.2, Table 1 | OK |
 | F7 | 166 vs 4,239 | Complexity C for success probability p = 50%: **166** with the dictionary, **4,239** for a fully random block (\|Z\| = 256). C counts oracle queries, and each query needs a new SSL/TLS session (Sec. 5.1 calls it "166 sessions"). These are **calculated** values (formula (5); Table 1 caption: "Calculated complexity"), not measured counts. | Sec. 4.3, Table 1, Sec. 5.1 | Changed: say "calculated", not "measured" |
-| F8 | Full Table 1 | Dictionary: C = 166, 181, 199, 223, 261, 380 for p = 0.5, 0.6, 0.7, 0.8, 0.9, 0.99. Uniform 256: 4239 … 11335. Also \|Z\| = 128 (C₀ = 516) and \|Z\| = 64 (C₀ = 260). Each column also gives log τ₋ and log τ₊. | Table 1, p. 13 | OK, recomputed (section 3); one likely typo |
+| F8 | Full Table 1 | Dictionary: C = 166, 181, 199, 223, 261, 380 for p = 0.5, 0.6, 0.7, 0.8, 0.9, 0.99. Uniform 256: 4239 … 11335. Also \|Z\| = 128 (C₀ = 516) and \|Z\| = 64 (C₀ = 260). Each column also gives log τ₋ and log τ₊. | Table 1, p. 593 | OK, recomputed (section 3); one likely typo |
 | F9 | "4–5×" | Gain of the **sequential** test (DecryptBlock4 with STOP/ACCEPT) over the **fixed-n** test (DecryptBlock2), found by a "similar computation", not by an experiment. It is **not** 4,239 / 166 (≈ 25.5). | Sec. 4.3, last paragraph | OK (matches decisions.md §7) |
-| F10 | 712,786 | They took the word list [5] and kept **only the words of 8 characters** (b = 8 bytes): 712,786 words. The paper calls them "words"; it does not say why the count is so large. | Sec. 4.3, p. 12 | OK: write "an 8-character subset of a large word list" |
+| F10 | 712,786 | They took the word list [5] and kept **only the words of 8 characters** (b = 8 bytes): 712,786 words. The paper calls them "words"; it does not say why the count is so large. The number is printed with a Swiss thousands mark (712'786), which copy-paste can turn into "7120786"; the ⌈log₂ D⌉ = 20 in the same paragraph confirms 712,786 (2²⁰ ≈ 1.05 million, while 7.1 million would need 23). | Sec. 4.3, p. 592 | OK: write "an 8-character subset of a large word list" |
 | F11 | "Less than an hour" | Abstract and Sec. 7. With 5 IMAP folders and a check every 5 minutes, Outlook gives 60 sessions per hour; with a check every minute, 166 sessions take about half an hour. | Abstract, Sec. 5.1, Sec. 7 | OK |
 
 ## 2. Setup facts
@@ -56,3 +56,4 @@ All under Conjecture 1 (normal, same σ), Sec. 2.3–2.4 and Sec. 4.2:
 1. decisions.md §5 and the report: call 166 and 4,239 **calculated** complexities at p = 50% (number of sessions), not experimental results.
 2. decisions.md §7: the items "cipher of the live test", "secret shared a block (Sec. 5.2)", "712,786", "4–5×", "τ± same for every candidate" and "PDF read only through a summarizer" can now be marked as checked by T2, with the answers above.
 3. Tier 2 notes: say that σ = 1.86 for both distributions is Canvel's simplification (the measured σ_R was 1.48).
+4. Timing unit: Fig. 3 gives it as 1/1000 s (ms). `decisions.md`, `core/contracts.py` and `core/fakes.py` still say the unit is not confirmed (T2 checks it). The core files belong to the Lead, so this is for Vân Khánh to update.
