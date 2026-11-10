@@ -68,6 +68,8 @@ It asks the noisy oracle about the same ciphertext again and again until it is c
 
 **Stubs** (`fakes.py`): `stub_attack` (one query, returns zero bytes) lets the harness (T12a) run before any real attack exists. `stub_sequential_check` (one sample, compared with the middle of the two means) lets T8a start before T7 is merged. Replace them when the real ones are merged.
 
+The shared evaluator is in `src/padding_oracle/harness/evaluation.py`. `run_experiment` writes one row per target, records `AttackFailure` as `success=0` with its observed query count, and lets other exceptions propagate.
+
 ## 5. Results file (one CSV per experiment, in `results/`)
 
 One row = **one attack on one target** (one random block or one test word). Success rate, error rate and the Tier 1 confidence interval are computed from the rows, so keep the raw rows. Comma separated, UTF-8, one header row, columns in this order:
@@ -90,5 +92,3 @@ One row = **one attack on one target** (one random block or one test word). Succ
 ## 6. Word list file
 
 `data/wordlist/words8.csv`: header `word,band,split`, for example `abandons,A,train`. Sorted by word, lowercase a–z, UTF-8, 36,322 rows. Bands `A`–`D`; splits `train`, `dev`, `test`. The seed and the SCOWL version go in `data/wordlist/README.md`; SCOWL's copyright notice is in its own file. Details: [wordlist-research.md](wordlist-research.md).
-
-The evaluator is in `src/padding_oracle/harness/evaluation.py`. `run_experiment` writes one row per target, and `run_tier1_experiment` / `run_tier2_experiment` bind the Vaudenay and dictionary attacks to it. `AttackFailure` is recorded as `success=0` with its observed query count; all other errors remain visible to the caller.

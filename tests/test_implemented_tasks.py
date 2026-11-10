@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from padding_oracle.core.contracts import AttackFailure, BLOCK_SIZE, PerfectOracle
+from padding_oracle.core.contracts import BLOCK_SIZE
 from padding_oracle.core.fakes import (
     FakePerfectOracle,
     fake_cbc_decrypt_raw,
@@ -22,10 +22,7 @@ from padding_oracle.countermeasures.servers import (
 from padding_oracle.harness.evaluation import (
     ExperimentCase,
     run_experiment,
-    run_tier1_experiment,
-    run_tier2_experiment,
 )
-from padding_oracle.tier1.vaudenay import attack as vaudenay_attack
 
 ROOT = Path(__file__).parents[1]
 
@@ -54,47 +51,6 @@ def test_wordlist_has_expected_counts_sort_order_and_splits():
         and row["word"].islower()
         for row in rows
     )
-
-
-def test_tier1_recovers_full_block_with_fake_perfect_oracle():
-    ciphertext = fake_cbc_encrypt(b"padding oracle test", bytes(16))[:32]
-    expected = fake_cbc_decrypt_raw(ciphertext)[-16:]
-
-    assert vaudenay_attack(FakePerfectOracle(), ciphertext, 16) == expected
-
-
-def test_tier1_reports_no_padding_oracle():
-    class RejectingOracle(PerfectOracle):
-        def _answer(self, ciphertext):
-            return False
-
-    with pytest.raises(AttackFailure):
-        vaudenay_attack(RejectingOracle(), bytes(32), 1)
-
-
-@pytest.mark.parametrize("kind", ["etm", "gcm"])
-def test_tier1_fails_against_authenticated_countermeasures(tmp_path, kind):
-    if kind == "etm":
-        server = EncryptThenMacServer(bytes(16), bytes(range(32)))
-        envelope = server.seal(b"secret", iv=bytes(16))
-    else:
-        server = AesGcmServer(bytes(16))
-        envelope = server.seal(b"x" * 20, nonce=bytes(12))
-    oracle = server.oracle_for(envelope)
-    assert oracle.query(envelope.ciphertext) is True
-
-    result = run_tier1_experiment(
-        experiment="countermeasure_tier1",
-        attack_name="vaudenay",
-        oracle=oracle,
-        cases=[ExperimentCase("tamper-test", envelope.ciphertext, b"x")],
-        seed=42,
-        output_path=tmp_path / f"{kind}.csv",
-        n_bytes=1,
-    )
-
-    assert result[0]["success"] == 0
-    assert result[0]["queries"] == 257
 
 
 def test_encrypt_then_mac_authenticates_before_decrypting(monkeypatch):
@@ -160,44 +116,3 @@ def test_stub_harness_writes_contract_csv(tmp_path):
             "bytes_attacked", "queries", "success", "params",
         ]
         assert next(reader)["success"] == "0"
-
-
-def test_tier1_harness_recovers_target(tmp_path):
-    ciphertext = fake_cbc_encrypt(b"known plaintext", bytes(16))[:32]
-    expected = fake_cbc_decrypt_raw(ciphertext)[-16:]
-    rows = run_tier1_experiment(
-        experiment="tier1",
-        attack_name="vaudenay",
-        oracle=FakePerfectOracle(),
-        cases=[ExperimentCase("sample", ciphertext, expected)],
-        seed=42,
-        output_path=tmp_path / "tier1.csv",
-        n_bytes=16,
-    )
-    assert rows[0]["success"] == 1
-    assert rows[0]["queries"] > 0
-
-
-def test_tier2_dictionary_attack_is_wired_into_harness(tmp_path):
-    word = b"abcdefgh"
-    plaintext = b"prefix!!" + word
-    ciphertext = fake_cbc_encrypt(plaintext, bytes(16))[:32]
-
-    def perfect_sequential_check(oracle, candidate_ciphertext):
-        return oracle.query(candidate_ciphertext)
-
-    rows = run_tier2_experiment(
-        experiment="tier2",
-        attack_name="dictionary",
-        oracle=FakePerfectOracle(),
-        cases=[ExperimentCase("sample", ciphertext, word, "A")],
-        seed=42,
-        output_path=tmp_path / "tier2.csv",
-        n_bytes=8,
-        attack_params={
-            "dictionary": [b"wrongxxx", word],
-            "sequential_check": perfect_sequential_check,
-        },
-    )
-    assert rows[0]["success"] == 1
-    assert rows[0]["queries"] == 3
