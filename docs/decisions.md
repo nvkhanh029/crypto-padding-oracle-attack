@@ -3,9 +3,9 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** what we decided, why, what we will build, and which sources we use. When a decision changes, this file is updated. <br>
 **Audience:** all team members. <br>
-**Last updated:** 07/11/2026. **Deadline:** 15/11/2026.
+**Last updated:** 11/11/2026. **Deadline:** 15/11/2026.
 
-> The report itself must be written by the team, not by AI. This file is a planning document only. For the story of the report (why this topic, why a noisy oracle, what "Countermeasures" means, what each tier means, where the cryptography is, the report structure), see [report-notes.md](report-notes.md).
+> The report itself must be written by the team, not by AI. This file is a planning document only. For the story of the report (why this topic, why a noisy oracle, what "Countermeasures" means, what each tier means, where the cryptography is, the report structure), see [report-notes.md](report-notes.md). Every Canvel fact we use, with its page in the paper: [canvel-fact-check.md](canvel-fact-check.md).
 
 ## Contents
 
@@ -64,8 +64,8 @@ In the report, this question is stated in one or two sentences under "Introducti
 | Tier | Content | Rubric level | Days (estimate) |
 |---|---|---|---|
 | 1 | Reproduce Vaudenay (2002) with a perfect oracle on AES-CBC. Measure queries per byte and per block over 100 random blocks (expect about 128 per byte, about 2048 per AES block; pass/fail by D14). Optional cross-check: compare our mean and spread with Jüttner (2012), scaled about 2× for 16-byte blocks; cite him only if we use this. Fix with Encrypt-then-MAC and AES-GCM, and show the attack fails (D13) | 15+ (main reproduction, checked by number, D14) | 1–4 |
-| 2 | Reproduce Canvel et al. (2003) `DecryptBlock4` in simulation: Gaussian timing (μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86), dictionary = all SCOWL eight-letter words (D11), uniform order, block layout D15. Compare with Canvel's C₀ = 31 and 166 vs 4,239 sessions at 50% success (our dictionary is much smaller, so expect different numbers). Also provides the noisy-oracle simulator and baseline (b) for Tier 3 | Baseline for Tier 3; second reproduction, checked by pattern (D14) | 4–6 |
-| 3 | Improvement: accept a candidate when its posterior > 1 − δ; keep one shared posterior and reuse old samples. Prior: character trigram with add-k smoothing (remember space and punctuation), fitted on the train split only (D12). The attack recovers bytes right to left (D15), so the prior predicts each letter from the letters to its right (a reversed trigram; our inference, the Tier 3 owner checks it). Compare with Tier 2, NCC's method (uniform prior, same Gaussian noise) and Sequential Halving, **at the same error rate** | 17+ | 6–8 |
+| 2 | Reproduce Canvel et al. (2003) `DecryptBlock4` in simulation: Gaussian timing in ms (μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86), dictionary = all SCOWL eight-letter words (D11), uniform order, block layout D15. Compare with Canvel's C₀ = 31 and his calculated 166 vs 4,239 sessions at 50% success (our dictionary is much smaller, so expect different numbers). Also provides the noisy-oracle simulator and baseline (b) for Tier 3 | Baseline for Tier 3; second reproduction, checked by pattern (D14) | 4–6 |
+| 3 | Improvement: accept a candidate when its posterior > 1 − δ; keep one shared posterior and reuse old samples. Prior: character trigram with add-k smoothing (remember space and punctuation), fitted on the train split only (D12). The attack recovers bytes right to left (D15), so the prior predicts each letter from the letters to its right (a reversed trigram: a normal trigram fitted on reversed words; checked by the Tier 3 owner). Compare with Tier 2, NCC's method (uniform prior, same Gaussian noise) and Sequential Halving, **at the same error rate** | 17+ | 6–8 |
 | + | Only if time: backtracking on wrong bytes; JSON/cookie plaintexts; reproduce NCC numbers (about 500k vs 50k queries at 40% error) | — | — |
 | — | Write report, check numbers and references | — | 8–10 |
 
@@ -88,17 +88,17 @@ All checked against the original papers.
 |---|---|---|---|
 | Vaudenay 2002 | W/2 trials per byte on average, so about 128 per byte | Perfect oracle | **Tier 1 main check.** Our mean queries per byte is compared with 128 using the D14 rule. |
 | Jüttner 2012 | Mean 1048 requests per block (range 585–1469, std 199); theory about 1034 | 100 runs, 8-byte blocks (DES). For AES expect about 2× | **Tier 1 optional cross-check** of the mean and the spread (scaled about 2×). Also the reason for 100 runs in D14. Cite only if used; say it is a bachelor thesis, not peer-reviewed. |
-| Canvel et al. 2003 | C₀ = 31; 166 sessions (dictionary) vs 4,239 (random block) at 50% success; the sequential test gives a 4–5× gain over DecryptBlock2 | 712,786 eight-character words from an Elcomsoft list; timing μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86 | **Tier 2.** The timing values are **inputs** to our simulation. 31, 166, 4,239 and 4–5× are compared **by pattern only** (D14), never as expected values. |
+| Canvel et al. 2003 | C₀ = 31; 166 sessions (dictionary) vs 4,239 (random block) at 50% success, both **calculated** with Canvel's formula (5), not measured; the sequential test gives a 4–5× gain over DecryptBlock2 | 712,786 eight-character words from an Elcomsoft list; timing in ms: μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86. Canvel measured σ_R ≈ 1.48 and σ_W ≈ 1.86, then used σ = 1.86 for both (his Conjecture 1) | **Tier 2.** The timing values are **inputs** to our simulation. 31, 166, 4,239 and 4–5× are compared **by pattern only** (D14), never as expected values. |
 | NCC Group 2023 | About 500,000 queries (exhaustive) vs just over 50,000 (probability-guided) | 16-byte block, 40% error, 0.999 confidence, uniform prior | **Tier 3.** Their method is baseline (c), run on our Gaussian noise. Reproducing their numbers is optional ("+" row) and needs a yes/no flip-noise mode in the simulator. |
 
-Note: Canvel's list is cited only as "English Word List" [5] (Elcomsoft, homepage only) and cannot be rebuilt. Our list has 36,322 eight-letter words, about 20 times fewer, so our Tier 2 numbers will clearly differ. Say so in the report, and do not reuse 31 or 166 as expected values.
+Note: Canvel's list is cited only as "English Word List" [5] (Elcomsoft, homepage only) and cannot be rebuilt. Our list has 36,322 eight-letter words, about 20 times fewer, so our Tier 2 numbers will clearly differ. Say so in the report, and do not reuse 31 or 166 as expected values. Page numbers and details for every Canvel number: [canvel-fact-check.md](canvel-fact-check.md).
 
 ## 6. References
 
 ### 6.1 Core (must read)
 
 1. S. Vaudenay. "Security Flaws Induced by CBC Padding." EUROCRYPT 2002, LNCS 2332. [PDF](https://iacr.org/archive/eurocrypt2002/23320530/cbc02_e02d.pdf)
-2. B. Canvel, A. Hiltgen, S. Vaudenay, M. Vuagnoux. "Password Interception in a SSL/TLS Channel." CRYPTO 2003. [PDF](https://www.iacr.org/archive/crypto2003/27290581/27290581.pdf). Read sections 2–4.
+2. B. Canvel, A. Hiltgen, S. Vaudenay, M. Vuagnoux. "Password Interception in a SSL/TLS Channel." CRYPTO 2003, LNCS 2729, pp. 581–597. [PDF](https://www.iacr.org/archive/crypto2003/27290581/27290581.pdf). Read sections 2–4.
 3. E. Sohl (NCC Group). "Exploiting Noisy Oracles with Bayesian Inference." Blog post, 23/06/2023. [Link](https://www.nccgroup.com/research/exploiting-noisy-oracles-with-bayesian-inference/)
 4. A. C. Jüttner. Bachelor thesis on padding attacks and CrypTool 2, 2012. Not peer-reviewed. Optional Tier 1 cross-check (D14). [PDF](https://www.cryptool.org/media/publications/theses/BA_Juettner_Padding-Oracle-Attack.pdf)
 
@@ -140,17 +140,16 @@ Note: Canvel's list is cited only as "English Word List" [5] (Elcomsoft, homepag
 ## 7. Known limits and unverified items
 
 - Queries per AES block: about 2048 on average, 4096 in the worst case. With our layout (D15) the attack stops after the 8 word bytes, about 1,024 queries per block with a perfect oracle (our arithmetic).
-- That Canvel uses the same thresholds τ± for every candidate is **our reading** of `Check4`. The paper does not say it directly. (Checked in T2.)
-- Canvel has **no backtracking** (checked).
+- That Canvel uses the same thresholds τ± for every candidate is **our reading**, well supported but not stated in one sentence: `Check4` (Fig. 5) takes only the tested string, and Table 1 gives one pair (log τ₋, log τ₊) per success target p.
+- Canvel has **no backtracking**: a wrong byte is never revisited (Fig. 5).
 - **NCC 2023 already uses a posterior-threshold stopping rule** (stop when the top posterior reaches 0.999) and a probability-guided query order, with a **uniform prior** and yes/no flip noise (FP = FN = 0.4). Checked on 02/11. So "accept when posterior > 1 − δ" is **not our idea**. Our contribution is only: (1) a non-uniform prior inside this rule, and (2) the Gaussian timing model from Canvel. The report must say this clearly.
 - The posterior error guarantee (error ≤ δ) only holds if the prior and noise model are correct. With a wrong prior (e.g. random bytes with an English prior) the real error rate can be higher. Measure it, and compare methods only at the same measured error rate. (Checked in T12b.)
 - "No one has combined prior + noisy oracle + prior-based decision" is based on our search only. Write "to our knowledge".
 - Do not state any percentage of query savings from the literature; none was verified. Use only our own measured numbers.
-- **712,786** (Canvel) is the count of 8-character words after filtering the Elcomsoft list, not the size of the whole list. It is far too large for a clean English dictionary, and why is unknown. Write "an 8-character subset of a large word list", never "712,786 English words". (Checked in T2.)
-- **"4–5×"** is the gain of sequential distinguishers over DecryptBlock2 (Sec. 4.3). It is **not** 4,239 / 166 (about 25.5). Keep the two comparisons apart. (Checked in T2.)
-- Canvel's analysis uses **8-byte blocks** (DES/3DES) and never mentions AES. The cipher used in the live test is not stated in what we read. Our AES block has 16 bytes (block layout in D15). (Checked in T2.)
-- Our block layout (D15) is the **easy alignment**: the word is at the end of the block, with nothing unknown to its right. In Canvel's test the secret shared a block with the line ending and the MAC (Sec. 5.2, to check in the PDF). Our results apply to our layout only. (Checked in T2.)
-- The Canvel PDF was read **only through a summarizer tool**. A team member must open Sec. 4.1, 4.3, 5.2, Table 1 and reference [5] before any Canvel number goes into the report. (Checked in T2.)
+- **712,786** (Canvel) is the count of 8-character words after filtering the Elcomsoft list, not the size of the whole list. It is far too large for a clean English dictionary, and the paper does not say why. Write "an 8-character subset of a large word list", never "712,786 English words".
+- **"4–5×"** is the gain of sequential distinguishers over DecryptBlock2 (Sec. 4.3). It comes from a "similar computation", not an experiment. It is **not** 4,239 / 166 (about 25.5). Keep the two comparisons apart.
+- Canvel's analysis uses **8-byte blocks** (DES/3DES) and never mentions AES. The live test forced the server to offer only CBC block ciphers, but the paper does not name the exact one. Write "an 8-byte CBC block cipher (likely 3DES)". Our AES block has 16 bytes (block layout in D15).
+- Our block layout (D15) is the **easy alignment**: the word is at the end of the block, with nothing unknown to its right. In Canvel's live test the last password bytes could share a block with the line ending and the MAC, and then could not be recovered (Sec. 5.2). Our results apply to our layout only.
 - Whether the AES library chosen for Tier 1 also supports GCM is not checked yet. The Tier 1 owner confirms it. (Checked in T3.)
 - The D14 statistics (standard deviation about 74, wobble about ±2.8%) are our own calculation. The Tier 1 owner re-checks them against the measured spread. (Checked in T4.)
 - That our rule is the posterior form of the Baum–Veeravalli MSPRT is our derivation; the primary paper is not read yet. (Checked in T10.)

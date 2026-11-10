@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** who does what, by when, and what must be ready before a task can start. <br>
 **Audience:** all team members. <br>
-**Last updated:** 06/11/2026.
+**Last updated:** 11/11/2026.
 
 | Key dates | |
 |---|---|
@@ -48,7 +48,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 | Kiên (T9) | – | Vân Khánh (short checklist) |
 | Hải | Duy | Vân Khánh |
 | Linh | – | Vân Khánh (short checklist) |
-| Minh | Kiên | Vân Khánh (short checklist) |
+| Minh | – | Vân Khánh |
 
 **Backups:** Vân Khánh for T3 and T4. An Khánh for T9, T11 and T12b. Kiên takes over T12a if it slips. Hải for T8a. T5 falls back to text only (D13).
 
@@ -115,7 +115,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 ### 4.4 Tier 3
 
 **T9: Trigram prior** (Kiên, due Wed 11/11). Depends on: T1, T0a.
-- Reversed trigram with add-k smoothing over 256 byte values, fitted on train words only, k chosen on dev, share of zero-count test trigrams reported (D12). An Khánh confirms the reversed direction before coding (Mon 09/11).
+- Reversed trigram with add-k smoothing over 256 byte values, fitted on train words only, k chosen on dev, share of zero-count test trigrams reported (D12).
 
 **T10: Posterior-threshold attack** (An Khánh, due Wed 11/11). Depends on: T6, T2 list, T9.
 - Built with a uniform prior first. The T9 prior is plugged in on Thu 12/11.

@@ -55,7 +55,7 @@ If the two disagree, the code is right. The summary below is for orientation onl
   - `ciphertext` = IV + ciphertext blocks. Length is a multiple of 16 and at least 32.
   - The countermeasure servers (T5) use the same call.
 - **Perfect oracle** returns `bool`: `True` = padding OK, `False` = padding wrong.
-- **Noisy oracle** returns `float`: one timing sample, in "time units". It never reveals the true answer.
+- **Noisy oracle** returns `float`: one timing sample, in milliseconds. It never reveals the true answer.
   - Timing inputs: μ_R ≈ 23.63 (padding right), μ_W ≈ 21.57 (padding wrong), σ ≈ 1.86. These are inputs, not results.
 - **Query counter** lives inside the oracle:
   - `oracle.queries` goes up by exactly 1 per `query()` call.
