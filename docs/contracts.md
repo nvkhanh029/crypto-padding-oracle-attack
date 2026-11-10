@@ -28,12 +28,6 @@ Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist
 | Noisy oracle | Returns `float`: one timing sample, in **time units**. It never reveals the truth. | Server type 2 (same message, small timing difference). Tiers 2 and 3 must decide from repeated samples. |
 | Counter | `oracle.queries` goes up by exactly 1 per `query()` call. `oracle.reset()` sets it to 0. The noisy oracle's inner padding check is not counted. A rejected (malformed) ciphertext is not counted. | One place to count, so no attack can forget or count twice (D14: a query counted twice gives +100% error and Tier 1 would fail). |
 
-**Authenticated countermeasure servers** (`countermeasures/servers.py`):
-
-- `EncryptThenMacServer` authenticates the IV and CBC ciphertext with HMAC-SHA-256 and verifies the MAC before decrypting. `AesGcmServer` releases plaintext only after AES-GCM verifies its tag.
-- Both reject malformed or unauthenticated input with the same public `AuthenticationError("authentication failed")`. Encrypt-then-MAC also maps invalid padding to that same error after a valid MAC; AES-GCM has no padding.
-- `oracle_for(envelope)` binds an oracle adapter to a captured challenge tag. For the attack experiments, the adapter accepts the attack's two-block ciphertext input and retains the original tag, as a client retaining the tag from the captured packet would. Modified probes are rejected before CBC decryption / plaintext release, so the adapters do not reveal padding validity.
-
 **Open item:** the timing unit is not confirmed. The values μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86 are inputs from `decisions.md`. Until T2 checks Canvel's PDF, this contract says "time units". No yes/no flip-noise mode for now (optional, added later if needed).
 
 ## 3. The fake oracles
@@ -56,7 +50,6 @@ def attack(oracle, ciphertext: bytes, n_bytes: int, **params) -> bytes
 - `n_bytes`: how many bytes to recover, from the end of the block: 16 (Tier 1) or 8 (the D15 word layout).
 - `params`: attack settings (for example δ, k). They are also written to the `params` CSV column.
 - Returns the recovered bytes. The harness compares them with the truth (`success`) and reads `oracle.queries` (`queries`).
-- If the observations do not support recovery (for example, authenticated countermeasures reject every tampered request), the attack raises `AttackFailure`. The harness records that target as `success=0`, keeps the query count, and logs the failure. Unexpected exceptions still propagate.
 
 **The Canvel-style sequential test** (T7 provides it, T8a calls it):
 
@@ -67,8 +60,6 @@ def sequential_check(oracle, ciphertext: bytes, **params) -> bool
 It asks the noisy oracle about the same ciphertext again and again until it is confident, then returns `True` (padding judged valid) or `False`. The thresholds go in `params`; their values are T7's job. This matches our reading of Canvel's `Check4`; T2 checks it in the PDF. If T2 finds a difference, only the body changes, not the signature.
 
 **Stubs** (`fakes.py`): `stub_attack` (one query, returns zero bytes) lets the harness (T12a) run before any real attack exists. `stub_sequential_check` (one sample, compared with the middle of the two means) lets T8a start before T7 is merged. Replace them when the real ones are merged.
-
-The shared evaluator is in `src/padding_oracle/harness/evaluation.py`. `run_experiment` writes one row per target, records `AttackFailure` as `success=0` with its observed query count, and lets other exceptions propagate.
 
 ## 5. Results file (one CSV per experiment, in `results/`)
 

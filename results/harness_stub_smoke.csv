@@ -1,2 +1,0 @@
-experiment,attack,oracle,seed,target,band,bytes_attacked,queries,success,params
-harness_stub_smoke,stub_attack,FakePerfectOracle,42,stub-target,,16,1,0,

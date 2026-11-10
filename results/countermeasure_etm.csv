@@ -1,2 +1,0 @@
-experiment,attack,oracle,seed,target,band,bytes_attacked,queries,success,params
-countermeasure_tier1,vaudenay,EncryptThenMacOracle,42,encrypt_then_mac,,1,257,0,
