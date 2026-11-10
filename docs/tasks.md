@@ -22,8 +22,8 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 | An Khánh | T2, T10, R4 |
 | Duy (report owner) | R1, R2, R3, R5, R6 |
 | Kiên | T3, T4, T9 |
-| Hải | T6, T7, T8b |
-| Linh | T8a, T13b, T11, T12b |
+| Hải | T6, T7, T12b |
+| Linh | T8a, T13b, T11, T8b |
 | Minh | T1, T13, T5, T12a |
 
 ## 2. Calendar and rules
@@ -50,7 +50,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 | Linh | – | Vân Khánh (short checklist) |
 | Minh | – | Vân Khánh |
 
-**Backups:** Vân Khánh for T3 and T4. An Khánh for T9, T11 and T12b. Kiên takes over T12a if it slips. Hải for T8a. T5 falls back to text only (D13).
+**Backups:** Vân Khánh for T3 and T4. An Khánh for T9, T11 and T12b. Kiên takes over T12a if it slips. Hải for T8a and T8b. T5 falls back to text only (D13).
 
 ## 4. Tasks
 
@@ -74,7 +74,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T3: AES-CBC, PKCS#7 padding, perfect oracle, query counter** (Kiên). Depends on: T0a.
 - 3a (Fri 06/11): AES-CBC encrypt/decrypt and PKCS#7 padding.
-- 3b (Sat 07/11): the perfect oracle ("padding OK or wrong") and the query counter, which counts every query. Also check that the chosen AES library supports GCM, and tell Minh and Vân Khánh.
+- 3b (Sat 07/11): the perfect oracle ("padding OK or wrong") and the query counter, which counts every query.
 
 **T4: Vaudenay attack and 100-block test** (Kiên). Depends on: T3 (start on the T0a fake perfect oracle).
 - 4a (Mon 09/11): the attack recovers all 16 bytes of one block.
@@ -109,7 +109,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 **T8a: Dictionary attack** (Linh, due Wed 11/11). Depends on: T1, T6, T7 (start on the T7 function signature from T0a).
 - Dictionary = all SCOWL eight-letter words, uniform order, layout D15.
 
-**T8b: Tier 2 experiments and pattern checks** (Hải, due Thu 12/11). Depends on: T7, T8a, T1.
+**T8b: Tier 2 experiments and pattern checks** (Linh, due Thu 12/11). Depends on: T7, T8a, T1.
 - The three pattern checks of D14: dictionary vs random block, sequential test vs simpler method (ratio next to Canvel's 4–5×), noise off gives the same plaintext as Tier 1.
 
 ### 4.4 Tier 3
@@ -119,19 +119,26 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T10: Posterior-threshold attack** (An Khánh, due Wed 11/11). Depends on: T6, T2 list, T9.
 - Built with a uniform prior first. The T9 prior is plugged in on Thu 12/11.
+- The prior is a parameter, so T11 can run the same attack with a uniform prior.
 - Accept a candidate when its posterior is above 1 − δ; one shared posterior; reuse old samples.
 - **Check:** that our rule is the posterior form of the Baum–Veeravalli MSPRT (our derivation; read the primary paper).
 
 **T11: NCC and Sequential Halving baselines** (Linh, due Thu 12/11). Depends on: T10, T6.
-- NCC's method = same rule with a uniform prior on the same Gaussian noise. Sequential Halving as the extra baseline.
+- NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule.
+- Sequential Halving, the extra baseline. Steps, for one byte with n candidates and a total query budget B:
+  1. Number of rounds R = ⌈log₂ n⌉.
+  2. In each round, query every remaining candidate ⌊B / (|S| · R)⌋ times, where |S| is the number of remaining candidates.
+  3. Keep the half with the highest mean timing (correct padding takes longer: μ_R > μ_W). Drop the rest.
+  4. After R rounds, one candidate is left: accept it.
 - **Check:** Sequential Halving follows Karnin et al. (2013) (read the primary paper).
 
 **T12a: Evaluation harness** (Minh). Depends on: T0a stub, then T4, T7, T8a.
 - 12a-1 (Tue 10/11): harness runs on the stub attack and writes the output file (queries, success rate, error rate, seed).
 - 12a-2 (Thu 12/11): plug in the Tier 1 and Tier 2 attacks. The Tier 3 attacks are plugged in by T12b.
 
-**T12b: Tier 3 experiments and charts** (Linh, due Fri 13/11). Depends on: T10, T11, T12a, T9.
-- Compare all methods at the same measured error rate; per band; random-bytes control (expect no gain); "train = test" control; success rate vs query budget chart.
+**T12b: Tier 3 experiments and charts** (Hải, due Fri 13/11). Depends on: T10, T11, T12a, T9, and the experiment spec.
+- Experiment spec (An Khánh, Thu 12/11 morning, half a page): which runs, the δ value, the query budget grid, the table layout.
+- Run the harness with the spec: compare all methods at the same measured error rate; per band; random-bytes control (expect no gain); "train = test" control; success rate vs query budget chart.
 - **Check:** the real error rate when the prior is wrong (random bytes). The error ≤ δ guarantee only holds when the prior and noise model are correct.
 
 ### 4.5 Report
