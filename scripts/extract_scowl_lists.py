@@ -48,12 +48,14 @@ def extract_lists(scowl_dir: Path, output_dir: Path) -> None:
                 check=True,
                 capture_output=True,
             )
-            lines = result.stdout.splitlines()
+            # Use LF line endings on every OS, so the SHA-256 is the same everywhere.
+            data = result.stdout.replace(b"\r\n", b"\n")
+            lines = data.splitlines()
             if len(lines) != expected_count:
                 raise ValueError(
                     f"wl{size}.txt: expected {expected_count} lines, found {len(lines)}"
                 )
-            (output_dir / f"wl{size}.txt").write_bytes(result.stdout)
+            (output_dir / f"wl{size}.txt").write_bytes(data)
             print(f"wl{size}.txt: {len(lines):,} lines")
 
 
