@@ -10,7 +10,8 @@ def attack(oracle: BaseOracle, ciphertext: bytes, n_bytes: int, **params) -> byt
 
     Optional byte_query_counts receives measured oracle-query deltas, from
     right to left. Query accounting remains owned by oracle.queries.
-    Raises RuntimeError
+    Raises RuntimeError if no guess gives valid padding for a byte 
+    (for example, against Encrypt-then-MAC or AES-GCM, where the oracle always says invalid).
     """
     if not isinstance(ciphertext, (bytes, bytearray)):
         raise TypeError("ciphertext must be bytes")
