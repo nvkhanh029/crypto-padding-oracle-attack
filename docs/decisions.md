@@ -138,6 +138,11 @@ Note: Canvel's list is cited only as "English Word List" [5] (Elcomsoft, homepag
 13. SEED Labs, Padding Oracle Attack Lab (W. Du). [PDF](https://seedsecuritylabs.org/Labs_20.04/Files/Crypto_Padding_Oracle/Crypto_Padding_Oracle.pdf)
 14. Cryptopals, Set 3 Challenge 17. [Link](https://cryptopals.com/sets/3/challenges/17)
 
+### 6.7 Block ciphers (Background)
+
+23. C. Paar, J. Pelzl. *Understanding Cryptography*. Springer, 2010. Ch. 4 (AES): p. 87 (AES is used in IPsec, TLS and SSH), p. 89 (128-bit block; 128-, 192- and 256-bit keys). Optional: §3.2, p. 58 (DES: 64-bit block, 56-bit key), only if the report says the attack works on any block cipher in CBC mode. Do not repeat p. 116 (no attack better than brute force): it is out of date since reference 24. Safe wording: "no practical attack on AES is known". Cite only the pages the report uses.
+24. A. Bogdanov, D. Khovratovich, C. Rechberger. "Biclique Cryptanalysis of the Full AES." ASIACRYPT 2011. Key recovery on the full AES-128 in about 2^126.1 operations: a little faster than brute force, but not practical. Cite only if the report makes a claim about AES security. [Link](https://eprint.iacr.org/2011/449)
+
 ## 7. Known limits and unverified items
 
 - Queries per AES block: about 2048 on average, 4096 in the worst case. With our layout (D15) the attack stops after the 8 word bytes, about 1,024 queries per block with a perfect oracle (our arithmetic).
