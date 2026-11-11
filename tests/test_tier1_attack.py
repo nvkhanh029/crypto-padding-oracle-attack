@@ -35,3 +35,25 @@ def test_attack_rejects_invalid_byte_count():
     import pytest
     with pytest.raises(ValueError, match="between 1 and 16"):
         attack(FakePerfectOracle(), bytes(32), 17)
+
+def test_vaudenay_attack_recovers_last_8_bytes_for_d15_layout():
+    # D15 layout: 8-byte prefix followed by an 8-digit word.
+    plaintext = b"PREFIX!!12345678"
+    iv = bytes(16)
+    challenge = fake_cbc_encrypt(plaintext, iv)[:32]
+
+    recovered = attack(FakePerfectOracle(), challenge, 8)
+
+    assert recovered == b"12345678"
+    assert len(recovered) == 8
+
+
+def test_vaudenay_attack_rejects_accidental_valid_0202_padding():
+    # The original plaintext ends in valid PKCS#7 padding (02 02).
+    # The last-byte confirmation step must reject that false candidate.
+    plaintext = bytes(14) + b"\x02\x02"
+    iv = bytes(16)
+    challenge = fake_cbc_encrypt(plaintext, iv)[:32]
+
+    assert attack(FakePerfectOracle(), challenge, 16) == plaintext
+
