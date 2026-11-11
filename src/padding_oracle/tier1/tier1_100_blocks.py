@@ -1,7 +1,8 @@
 """Run the 100-block Tier 1 reproduction experiment.
 
 From the repository root:
-    python experiments/tier1_100_blocks.py --seed 20261109
+    $env:PYTHONPATH = "src"
+    python -m padding_oracle.tier1.tier1_100_blocks --seed 20261109
 """
 from __future__ import annotations
 
