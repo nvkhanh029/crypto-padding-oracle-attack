@@ -277,7 +277,7 @@ But Tier 2 does **not** secure 15+ by itself (Tier 1 does that), and it does **n
  
 | Building block | What to explain | How we show it |
 |---|---|---|
-| AES | A block cipher: encrypts one 16-byte block with a secret key. We use it; we never break it | Short description (Background) |
+| AES | A block cipher: encrypts one 16-byte block with a secret key. We use it; we never break it. Write "no practical attack on AES is known", not "no attack better than brute force" (out of date since 2011, see [decisions.md](decisions.md), references 23–24). Source: Paar and Pelzl, Ch. 4, pages listed in reference 23 | Short description (Background) |
 | CBC mode | Each plaintext block is XORed with the previous ciphertext block (the first one with an IV) before encryption. Decryption: P_i = Decrypt_K(C_i) XOR C_(i−1) | CBC decryption diagram (Background) + our code |
 | PKCS#7 padding | Fills the last block to 16 bytes; each padding byte holds the padding length. The server checks it after decryption, and this check is the oracle | Short description (Background) + our code |
 | Confidentiality vs integrity | CBC hides the message but does not detect changes | One or two sentences (Background), repeated in the conclusion |
@@ -331,6 +331,7 @@ Full list in [decisions.md](decisions.md), section 6.
  
 - Vaudenay (2002), Canvel et al. (2003), NCC Group / Sohl (2023): core attack papers.
 - Jüttner (2012): optional Tier 1 cross-check; bachelor thesis, not peer-reviewed.
+- Paar and Pelzl, *Understanding Cryptography* (2010), Ch. 4: AES facts for the Background. Bogdanov et al. (2011): only if the report makes a claim about AES security.
 - Boneh and Shoup, *A Graduate Course in Applied Cryptography*: §9.4.1, §9.4.2–9.4.3, §9.7.
 - Bellare and Namprempre (2008); NIST SP 800-38A and 800-38D.
 - Merget et al. (2019); CVE-2021-29443 advisory.
