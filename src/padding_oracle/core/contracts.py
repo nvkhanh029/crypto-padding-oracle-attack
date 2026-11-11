@@ -115,8 +115,8 @@ class PerfectOracle(BaseOracle):
 class NoisyOracle(BaseOracle):
     """Server type 2: leaks only timing. `query` returns a float.
 
-    The float is ONE timing sample, in time units (the real unit is confirmed
-    by T2 against Canvel). Valid padding tends to take longer than invalid.
+    The float is ONE timing sample, in milliseconds (Canvel 2003, Fig. 3).
+    Valid padding tends to take longer than invalid.
     The oracle NEVER reveals the true yes/no: the attacker must decide from
     repeated samples (that is the whole point of Tiers 2 and 3).
     """
