@@ -120,11 +120,11 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 **T10: Posterior-threshold attack** (An Khánh, due Wed 11/11). Depends on: T6, T2 list, T9.
 - Built with a uniform prior first. The T9 prior is plugged in on Thu 12/11.
 - The prior is a parameter, so T11 can run the same attack with a uniform prior.
-- Accept a candidate when its posterior is above 1 − δ; one shared posterior; reuse old samples.
+- Accept a candidate when its posterior is above 1 − δ, with **δ = 0.001 per byte (D18)**; one shared posterior; reuse old samples.
 - **Check:** that our rule is the posterior form of the Baum–Veeravalli MSPRT (our derivation; read the primary paper).
 
 **T11: NCC and Sequential Halving baselines** (Linh, due Thu 12/11). Depends on: T10, T6.
-- NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule.
+- NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule. **Same δ as T10 (D18).**
 - Sequential Halving, the extra baseline. Steps, for one byte with n candidates and a total query budget B:
   1. Number of rounds R = ⌈log₂ n⌉.
   2. In each round, query every remaining candidate ⌊B / (|S| · R)⌋ times, where |S| is the number of remaining candidates.
@@ -137,7 +137,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 - 12a-2 (Thu 12/11): plug in the Tier 1 and Tier 2 attacks. The Tier 3 attacks are plugged in by T12b.
 
 **T12b: Tier 3 experiments and charts** (Hải, due Fri 13/11). Depends on: T10, T11, T12a, T9, and the experiment spec.
-- Experiment spec (An Khánh, Thu 12/11 morning, half a page): which runs, the δ value, the query budget grid, the table layout.
+- Experiment spec (An Khánh, Thu 12/11 morning, half a page): which runs, the query budget grid, the table layout. δ = 0.001 is fixed (D18).
 - Run the harness with the spec: compare all methods at the same measured error rate; per band; random-bytes control (expect no gain); "train = test" control; success rate vs query budget chart.
 - **Check:** the real error rate when the prior is wrong (random bytes). The error ≤ δ guarantee only holds when the prior and noise model are correct.
 

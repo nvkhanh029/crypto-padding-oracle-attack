@@ -76,9 +76,9 @@ One row = **one attack on one target** (one random block or one test word). Succ
 | `bytes_attacked` | Bytes recovered | `16` or `8` |
 | `queries` | `oracle.queries` after the attack | `2051` |
 | `success` | `1` if every attacked byte is correct, else `0` | `1` |
-| `params` | Settings as text, may be empty | `delta=...;k=...` |
+| `params` | Settings as text, may be empty | `delta=0.001;k=...` |
 
-`delta=...;k=...` only shows the format. The values of δ and k are not chosen yet. Not included on purpose: timing per query and a git-commit column (no task needs them).
+δ = 0.001 (D18). k is not chosen yet (chosen on dev, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
 
 ## 6. Word list file
 
