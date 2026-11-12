@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** who does what, by when, and what must be ready before a task can start. <br>
 **Audience:** all team members. <br>
-**Last updated:** 11/11/2026.
+**Last updated:** 12/11/2026.
 
 | Key dates | |
 |---|---|
@@ -22,8 +22,8 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 | An Khánh | T2, T10, R4 |
 | Duy (report owner) | R1, R2, R3, R5, R6 |
 | Kiên | T3, T4, T9 |
-| Hải | T6, T7, T12b |
-| Linh | T8a, T13b, T11, T8b |
+| Hải | T6, T7, T11, T12b |
+| Linh | T8a, T13b, T8b |
 | Minh | T1, T13, T5, T12a |
 
 ## 2. Calendar and rules
@@ -40,17 +40,17 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 ## 3. Reviews and backups
 
-| Author | First review | Then |
-|---|---|---|
-| Vân Khánh | Duy | – |
-| An Khánh | – | Vân Khánh (core) |
-| Kiên (T3, T4 core code) | – | Vân Khánh |
-| Kiên (T9) | – | Vân Khánh (short checklist) |
-| Hải | Duy | Vân Khánh |
-| Linh | – | Vân Khánh (short checklist) |
-| Minh | – | Vân Khánh |
+| Author | Reviewer |
+|---|---|
+| Vân Khánh | Hải |
+| An Khánh | Vân Khánh (core) |
+| Kiên (T3, T4 core code) | Vân Khánh |
+| Kiên (T9) | Vân Khánh (short checklist) |
+| Hải | Vân Khánh |
+| Linh | Vân Khánh (short checklist) |
+| Minh | Vân Khánh |
 
-**Backups:** Vân Khánh for T3 and T4. An Khánh for T9, T11 and T12b. Kiên takes over T12a if it slips. Hải for T8a and T8b. T5 falls back to text only (D13).
+**Backups:** An Khánh for T8a and T8b. Kiên takes over T12a if it slips. T5 falls back to text only (D13).
 
 ## 4. Tasks
 
@@ -62,13 +62,13 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 - Done when: Kiên, Hải, Linh and Minh can code against it without asking.
 
 **T0b: Repo, CI, smoke tests, AI rules file** (Vân Khánh, due Fri 06/11). Depends on: T0a.
-- Repo, CI with 3–5 smoke tests (create a block, run the Tier 1 attack on a small case, write an output file), AI rules file, Python version and requirements that work on a Windows laptop with 8 GB RAM.
+- Repo, CI with 3–5 smoke tests (create a block, run the Tier 1 attack on a small case, write an output file), AI rules file, Python version and requirements.
 
 **E1: Explainer sheet** (Vân Khánh, due Fri 13/11). Depends on: the Tier 3 results taking shape.
 - One page: what the project does, architecture, who owns which part, 5–6 likely questions with suggested answers. Everyone reads it.
 
 **M1: Final merge and demo build** (Vân Khánh, due Sat 14/11). Depends on: all code tasks.
-- Merge, run everything from a clean checkout on a Windows laptop, fix only blocking problems.
+- Merge, run everything from a clean checkout, fix only blocking problems.
 
 ### 4.2 Tier 1 and countermeasures
 
@@ -123,7 +123,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 - Accept a candidate when its posterior is above 1 − δ, with **δ = 0.001 per byte (D18)**; one shared posterior; reuse old samples.
 - **Check:** that our rule is the posterior form of the Baum–Veeravalli MSPRT (our derivation; read the primary paper).
 
-**T11: NCC and Sequential Halving baselines** (Linh, due Thu 12/11). Depends on: T10, T6.
+**T11: NCC and Sequential Halving baselines** (Hải, due Thu 12/11). Depends on: T10, T6.
 - NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule. **Same δ as T10 (D18).**
 - Sequential Halving, the extra baseline. Steps, for one byte with n candidates and a total query budget B:
   1. Number of rounds R = ⌈log₂ n⌉.
