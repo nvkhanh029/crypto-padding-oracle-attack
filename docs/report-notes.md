@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** the story of the report. Why this topic, why a noisy oracle, what "Countermeasures" means, what each tier proves, how we judge a reproduction, why we use the easy block layout, where the cryptography is in the report, the report structure and page budget, and what we must not claim. <br>
 **Audience:** the report writer and every member who writes or checks a part of the report. <br>
-**Last updated:** 05/11/2026.
+**Last updated:** 11/11/2026.
  
 ## Contents
  
@@ -64,7 +64,7 @@ You may mention in one short phrase that the attack can be simulated fully in so
 **Does the real web have noisy oracles?** Yes, in two kinds:
  
 - **Clear oracle (not noisy):** the server shows a different error message or behaviour. Merget et al. (2019) scanned for this. **[CHECK]**
-- **Noisy oracle (timing):** both cases look the same, and the only clue is a small time difference. Canvel et al. (2003) did this on SSL/TLS. In their numbers (mean time when padding is right about 23.63, wrong about 21.57, standard deviation about 1.86), the gap between the two cases is about the same size as the noise, so one query is not enough. **[CHECK: open the PDF before using these numbers.]**
+- **Noisy oracle (timing):** both cases look the same, and the only clue is a small time difference. Canvel et al. (2003) did this on SSL/TLS. In their numbers (mean time when padding is right about 23.63, wrong about 21.57, standard deviation about 1.86), the gap between the two cases is about the same size as the noise, so one query is not enough. The values are in milliseconds (Canvel, Fig. 3). Page numbers: [canvel-fact-check.md](canvel-fact-check.md).
 **Honest limit:** our noise is **simulated**. We do not claim we measured a real server. A safe idea for the report: the noise model is based on the timing numbers reported by Canvel et al.
  
 ---
@@ -134,7 +134,7 @@ In cryptography, attack research and defense research often go together. But her
  
 - The rubric's top level, "design an algorithm, implement, evaluate, analyze" (17+), is covered by Tier 3, which improves the **attack**.
 - D9: three tiers, no new scope. Tier 3 is already the biggest risk.
-**How attack and defense connect:** hiding the error message is not enough. If the server shows the same error but the timing differs (server type 2), the attacker still has a noisy oracle. Only "check the MAC first" removes the oracle completely. **[CHECK: our reading of Canvel et al.; confirm in the PDF.]**
+**How attack and defense connect:** hiding the error message is not enough. If the server shows the same error but the timing differs (server type 2), the attacker still has a noisy oracle. Only "check the MAC first" removes the oracle completely. Canvel et al. saw the first part: OpenSSL 0.9.6d already sent the same error message for both errors, but the timing difference was still there (Sec. 5.2).
  
 ---
  
@@ -261,7 +261,7 @@ But Tier 2 does **not** secure 15+ by itself (Tier 1 does that), and it does **n
  
 1. **Our question is about the prior.** We ask whether an "English word" guess saves queries. The easy layout tests this directly.
 2. **The extra unknown bytes cannot help the prior.** In a harder layout, 8 unknown bytes sit to the right of the word. They look random to the attacker, so the prior says nothing about them. They only add a cost that has nothing to do with our question. **[OUR REASONING.]**
-3. **Honest limit.** A real system may be harder. For example, in Canvel's test the secret shared a block with the line ending and the MAC. **[CHECK in the PDF, Sec. 5.2.]** Our results apply to this easy alignment only. Say so in the report.
+3. **Honest limit.** A real system may be harder. For example, in Canvel's test the last password bytes could share a block with the line ending and the MAC, and then could not be recovered (Sec. 5.2). Our results apply to this easy alignment only. Say so in the report.
 ---
  
 ## 11. Where the cryptography is in our report, and the report structure
@@ -277,7 +277,7 @@ But Tier 2 does **not** secure 15+ by itself (Tier 1 does that), and it does **n
  
 | Building block | What to explain | How we show it |
 |---|---|---|
-| AES | A block cipher: encrypts one 16-byte block with a secret key. We use it; we never break it | Short description (Background) |
+| AES | A block cipher: encrypts one 16-byte block with a secret key. We use it; we never break it. Write "no practical attack on AES is known", not "no attack better than brute force" (out of date since 2011, see [decisions.md](decisions.md), references 23–24). Source: Paar and Pelzl, Ch. 4, pages listed in reference 23 | Short description (Background) |
 | CBC mode | Each plaintext block is XORed with the previous ciphertext block (the first one with an IV) before encryption. Decryption: P_i = Decrypt_K(C_i) XOR C_(i−1) | CBC decryption diagram (Background) + our code |
 | PKCS#7 padding | Fills the last block to 16 bytes; each padding byte holds the padding length. The server checks it after decryption, and this check is the oracle | Short description (Background) + our code |
 | Confidentiality vs integrity | CBC hides the message but does not detect changes | One or two sentences (Background), repeated in the conclusion |
@@ -310,7 +310,7 @@ But Tier 2 does **not** secure 15+ by itself (Tier 1 does that), and it does **n
  
 ## 12. Checklist before writing
  
-- [ ] Open the Canvel PDF (Sec. 4.1, 4.3, 5.2, Table 1, reference [5]) and check every number we use.
+- [ ] Take every Canvel number and page from [canvel-fact-check.md](canvel-fact-check.md). Call 166 and 4,239 calculated, not measured.
 - [ ] Open Boneh-Shoup §9.4.1, §9.4.2–9.4.3, §9.7 and check the Encrypt-then-MAC and GCM explanations.
 - [ ] Check Merget et al. (2019) for the 1.83% figure, the CVE-2021-29443 advisory, and Lucky Thirteen.
 - [ ] Explain in the introduction why we chose this topic (section 1), using the report reasons only.
@@ -331,6 +331,7 @@ Full list in [decisions.md](decisions.md), section 6.
  
 - Vaudenay (2002), Canvel et al. (2003), NCC Group / Sohl (2023): core attack papers.
 - Jüttner (2012): optional Tier 1 cross-check; bachelor thesis, not peer-reviewed.
+- Paar and Pelzl, *Understanding Cryptography* (2010), Ch. 4: AES facts for the Background. Bogdanov et al. (2011): only if the report makes a claim about AES security.
 - Boneh and Shoup, *A Graduate Course in Applied Cryptography*: §9.4.1, §9.4.2–9.4.3, §9.7.
 - Bellare and Namprempre (2008); NIST SP 800-38A and 800-38D.
 - Merget et al. (2019); CVE-2021-29443 advisory.
