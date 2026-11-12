@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH.
 **Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles.
 **Audience:** all team members, and any AI tool helping with code (paste this file into it).
-**Last updated:** 11/11/2026.
+**Last updated:** 12/11/2026.
 
 > **Exact names are in `src/padding_oracle/core/contracts.py`. If this document and that file disagree, the code is right.**
 
@@ -69,7 +69,7 @@ One row = **one attack on one target** (one random block or one test word). Succ
 |---|---|---|
 | `experiment` | Groups rows | `tier1_reproduction` |
 | `attack` | Which attack | `vaudenay`, `posterior_trigram` |
-| `oracle` | Oracle class name | `FakePerfectOracle`, `PerfectOracle` |
+| `oracle` | Oracle class name | `FakePerfectOracle`, `AESPerfectOracle` |
 | `seed` | Integer, to repeat the run | `42` |
 | `target` | The target | `random_block_017` or the secret word |
 | `band` | `A`–`D` for a word, empty for a random block | `C` |

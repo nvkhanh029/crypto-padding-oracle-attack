@@ -1,4 +1,4 @@
-"""Run the 100-block Tier 1 reproduction experiment.
+"""Run the 100-block Tier 1 reproduction experiment with real AES-CBC.
 
 From the repository root:
     $env:PYTHONPATH = "src"
@@ -13,11 +13,13 @@ import statistics
 from pathlib import Path
 
 from padding_oracle.core.contracts import BLOCK_SIZE, CSV_COLUMNS
-from padding_oracle.core.fakes import FakePerfectOracle, fake_cbc_encrypt
+from padding_oracle.tier1.aes import aes_cbc_encrypt
 from padding_oracle.tier1.attack import attack
+from padding_oracle.tier1.oracle import AESPerfectOracle
 
 DEFAULT_SEED = 20261109
 N_BLOCKS = 100
+AES_KEY_SIZE = 16
 ACCEPTANCE_LOW = 128 * 0.95
 ACCEPTANCE_HIGH = 128 * 1.05
 
@@ -30,6 +32,8 @@ def random_bytes(rng: random.Random, length: int) -> bytes:
 def run_experiment(seed: int, output_path: Path) -> dict[str, float | int | bool]:
     """Run 100 attacks, write required CSV rows, and return measured statistics."""
     rng = random.Random(seed)
+    # Reuse one deterministic AES key for all 100 targets.
+    key = random_bytes(rng, AES_KEY_SIZE)
     rows = []
     byte_query_counts = []
     successes = 0
@@ -37,10 +41,12 @@ def run_experiment(seed: int, output_path: Path) -> dict[str, float | int | bool
     for target_number in range(1, N_BLOCKS + 1):
         plaintext = random_bytes(rng, BLOCK_SIZE)
         iv = random_bytes(rng, BLOCK_SIZE)
-        encrypted = fake_cbc_encrypt(plaintext, iv)
+
+        # aes_cbc_encrypt returns IV || ciphertext. The attack targets C1 only.
+        encrypted = aes_cbc_encrypt(plaintext, key, iv)
         challenge = encrypted[:2 * BLOCK_SIZE]  # IV || C1
 
-        oracle = FakePerfectOracle()
+        oracle = AESPerfectOracle(key)
         counts = []
         recovered = attack(oracle, challenge, BLOCK_SIZE, byte_query_counts=counts)
         success = int(recovered == plaintext)
