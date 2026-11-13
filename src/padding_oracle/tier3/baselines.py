@@ -8,10 +8,19 @@ Sequential Halving (Karnin, Koren and Somekh, 2013): split the 256 candidate
 bytes round by round, query every remaining candidate a number of times from
 the query budget, keep the half with the highest mean timing (padding right
 takes longer: MU_R > MU_W), and accept the last survivor. It uses no prior
-and no probability threshold.
+and no probability threshold. Samples from earlier rounds are kept: the mean
+after round k uses all samples drawn so far (Karnin et al., Algorithm 2).
 
-Both baselines take the query budget as an input. T12b compares the methods
-at the same measured error rate and on the same query-budget grid.
+The two baselines use the query budget differently, so T12b must convert the
+units before comparing them:
+- NCC stops when the posterior passes 1 - delta; `max_queries` is optional and
+  counts the whole attack (one word), not one byte.
+- Sequential Halving needs `budget_per_byte`; one 8-byte word can use up to
+  about 8 * budget_per_byte queries. The floor in each round can leave part of
+  that budget unused, so the budget need not be a multiple of 2048.
+
+T12b compares the methods at the same measured error rate and on the same
+query-budget grid.
 
 Python 3.11+.
 """
@@ -54,8 +63,13 @@ def ncc_attack(
     the experiments can name the baseline and so a reader can see that the
     only difference from our attack is the prior.
 
-    Parameters are the same as `posterior_attack`; extra `params` (for
-    example k for the CSV) are accepted and ignored.
+    `max_queries` is optional. If set, it is the budget for the whole attack
+    (all `n_bytes` bytes), not per byte. Without it, the attack stops when the
+    posterior passes 1 - delta.
+
+    Extra `params` (for example k for the CSV) are accepted and ignored. They
+    are deliberately not forwarded to `posterior_attack`: a `prior` in
+    `params` must not override NCC's uniform prior.
     """
     return posterior_attack(
         oracle,
@@ -68,7 +82,6 @@ def ncc_attack(
         sigma=sigma,
         max_queries=max_queries,
         seed=seed,
-        **params,
     )
 
 
@@ -88,6 +101,11 @@ def sequential_halving_byte(
     `budget // (|S| * SH_ROUNDS)` times; the half with the highest mean
     timing survives. After the last round one candidate is left.
 
+    The mean after a round uses all samples drawn for that candidate so far,
+    including earlier rounds (Karnin et al., Algorithm 2). The floor is
+    applied in every round, so part of the budget can stay unused; B=3000
+    uses 2666 queries for this byte, and B need not be a multiple of 2048.
+
     The forged block uses fresh random bytes to the left of `position`, as
     in the T10 attack: a wrong guess cannot keep a shorter padding valid by
     accident.
@@ -104,23 +122,23 @@ def sequential_halving_byte(
 
     candidates = list(range(N_CANDIDATES))
     pad = BLOCK_SIZE - position
+    totals = {guess: 0.0 for guess in candidates}
+    counts = {guess: 0 for guess in candidates}
 
     for _ in range(SH_ROUNDS):
         samples_each = budget // (len(candidates) * SH_ROUNDS)
-        scores = []
         for guess in candidates:
-            total = 0.0
             for _ in range(samples_each):
-                total += oracle.query(
+                totals[guess] += oracle.query(
                     _forge_block(prev, target, position, guess, known, pad, rng)
                 )
-            scores.append(total / samples_each)
+            counts[guess] += samples_each
 
-        # Padding right takes longer, so keep the highest means.
-        order = sorted(range(len(candidates)), key=lambda i: scores[i],
+        # Padding right takes longer, so keep the highest cumulative means.
+        order = sorted(candidates, key=lambda c: totals[c] / counts[c],
                        reverse=True)
         keep = max(1, len(candidates) // 2)
-        candidates = [candidates[i] for i in order[:keep]]
+        candidates = order[:keep]
 
     return candidates[0]
 
@@ -137,7 +155,13 @@ def sequential_halving_attack(
     """Sequential Halving baseline for `n_bytes` bytes (the Attack shape).
 
     `budget_per_byte` is the B from the T11 spec, applied to each byte in
-    turn. The attack recovers bytes from the end of the target block, so
+    turn. The total budget for the attack is at most
+    `n_bytes * budget_per_byte`; for the D15 word (8 bytes) that is about
+    eight times this value, and can be less because each round rounds down.
+    This is different from `ncc_attack`'s `max_queries`, which is the budget
+    for the whole attack.
+
+    The attack recovers bytes from the end of the target block, so
     `n_bytes=8` is the D15 word layout. No prior and no timing model are
     used: only the ordering of the sample means matters.
 

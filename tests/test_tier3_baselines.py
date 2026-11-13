@@ -1,15 +1,23 @@
 """Smoke tests for T11: the NCC and Sequential Halving baselines."""
 
+import random
+
 import pytest
 
 from padding_oracle.core import contracts as c
 from padding_oracle.core import fakes as f
+from padding_oracle.core.contracts import NoisyOracle
 from padding_oracle.tier2 import GaussianTimingOracle
 from padding_oracle.tier3 import (
     ncc_attack,
     posterior_attack,
     sequential_halving_attack,
     uniform_prior,
+)
+from padding_oracle.tier3.baselines import (
+    N_CANDIDATES,
+    SH_ROUNDS,
+    sequential_halving_byte,
 )
 
 PREFIX = b"prefix00"          # known 8-byte prefix (D15)
@@ -19,6 +27,16 @@ WORD = b"password"
 def two_blocks(plain16: bytes) -> bytes:
     """IV + the target block for a 16-byte plaintext."""
     return f.fake_cbc_encrypt(plain16, bytes(16))[:32]
+
+
+def _sh_queries_per_byte(budget: int) -> int:
+    """New queries used by one Sequential Halving byte run (round floors)."""
+    remaining = N_CANDIDATES
+    total = 0
+    for _ in range(SH_ROUNDS):
+        total += (budget // (remaining * SH_ROUNDS)) * remaining
+        remaining = max(1, remaining // 2)
+    return total
 
 
 # --- Baseline (c): NCC = posterior-threshold with a uniform prior ----------
@@ -49,6 +67,21 @@ def test_ncc_accepts_extra_harness_params():
     got = ncc_attack(oracle, two_blocks(PREFIX + WORD), 8, k=0.1,
                      max_queries=10)
     assert len(got) == 8
+
+
+def test_ncc_ignores_a_prior_passed_in_params():
+    ct = two_blocks(PREFIX + WORD)
+    baseline_oracle = f.FakeNoisyOracle(seed=8)
+    baseline = ncc_attack(baseline_oracle, ct, 8, seed=8)
+
+    other_oracle = f.FakeNoisyOracle(seed=8)
+    got = ncc_attack(
+        other_oracle, ct, 8, seed=8,
+        prior=lambda suffix: [1.0 / 256] * 256,
+    )
+
+    assert got == baseline                 # NCC keeps its uniform prior
+    assert other_oracle.queries == baseline_oracle.queries
 
 
 def test_ncc_matches_the_attack_shape():
@@ -95,6 +128,60 @@ def test_sequential_halving_stays_inside_the_budget():
     )
     assert len(got) == 8
     assert 0 < oracle.queries <= 8 * budget
+
+
+def test_sequential_halving_leaves_unused_budget_after_flooring():
+    oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
+    budget = 3000
+
+    sequential_halving_attack(
+        oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=budget, seed=3
+    )
+    assert oracle.queries == 8 * _sh_queries_per_byte(budget)
+    assert oracle.queries < 8 * budget
+
+
+class _ScriptedOracle(NoisyOracle):
+    """Return scripted timings for two candidates, to test sample reuse."""
+
+    def __init__(self, prev: bytes, position: int, pad: int,
+                 candidate_a: int, candidate_b: int) -> None:
+        super().__init__()
+        self.prev = prev
+        self.position = position
+        self.pad = pad
+        self.candidate_a = candidate_a
+        self.candidate_b = candidate_b
+        self.calls: dict[int, int] = {}
+
+    def _answer(self, ciphertext: bytes) -> float:
+        guess = (
+            ciphertext[self.position] ^ self.prev[self.position] ^ self.pad
+        )
+        index = self.calls.get(guess, 0)
+        self.calls[guess] = index + 1
+
+        if guess == self.candidate_a:
+            return 1000.0 if index == 0 else 0.0
+        if guess == self.candidate_b:
+            if index == 0:
+                return 1.0
+            # Round 8 starts after 1+2+4+8+16+32+64 = 127 calls.
+            return 2.0 if index >= 127 else 0.0
+        return 0.0
+
+
+def test_sequential_halving_reuses_samples_from_earlier_rounds():
+    # Round 1: A=1000, B=1. Round 8: A=0, B=2.
+    # Only current-round means would pick B; cumulative means pick A.
+    candidate_a, candidate_b = 65, 66
+    oracle = _ScriptedOracle(
+        bytes(16), 15, 1, candidate_a, candidate_b
+    )
+    got = sequential_halving_byte(
+        oracle, bytes(16), bytes(16), 15, {}, 2048, random.Random(0)
+    )
+    assert got == candidate_a
 
 
 def test_sequential_halving_accepts_extra_harness_params():
