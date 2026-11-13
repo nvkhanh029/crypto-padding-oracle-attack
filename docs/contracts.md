@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH.
 **Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles.
 **Audience:** all team members, and any AI tool helping with code (paste this file into it).
-**Last updated:** 12/11/2026.
+**Last updated:** 13/11/2026.
 
 > **Exact names are in `src/padding_oracle/core/contracts.py`. If this document and that file disagree, the code is right.**
 
@@ -78,7 +78,7 @@ One row = **one attack on one target** (one random block or one test word). Succ
 | `success` | `1` if every attacked byte is correct, else `0` | `1` |
 | `params` | Settings as text, may be empty | `delta=0.001;k=...` |
 
-δ = 0.001 (D18). k is not chosen yet (chosen on dev, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
+δ = 0.001 (D18). k = 0.0079 (chosen on dev with the T9 prior, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
 
 ## 6. Word list file
 
