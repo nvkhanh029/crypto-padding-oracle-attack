@@ -37,14 +37,14 @@ BLOCK_SIZE = 16  # AES block size, in bytes.
 CSV_COLUMNS = [
     "experiment",     # groups rows, e.g. "tier1_reproduction"
     "attack",         # which attack, e.g. "vaudenay", "canvel_sequential"
-    "oracle",         # oracle class name, e.g. "FakePerfectOracle", "PerfectOracle"
+    "oracle",         # oracle class name, e.g. "FakePerfectOracle", "AESPerfectOracle"
     "seed",           # integer; lets the run be repeated
     "target",         # the target, e.g. "random_block_017" or the secret word
     "band",           # "A".."D" for a word, empty string for a random block
     "bytes_attacked", # how many bytes were recovered: 16 (Tier 1) or 8 (D15)
     "queries",        # oracle.queries after the attack; the main cost number
     "success",        # 1 if every attacked byte was correct, else 0
-    "params",         # settings as text, e.g. "delta=0.01;k=0.1" (may be empty)
+    "params",         # settings as text, e.g. "delta=0.001;k=..." (may be empty)
 ]
 
 # --- Word-list file contract ----------------------------------------------
@@ -120,8 +120,8 @@ class PerfectOracle(BaseOracle):
 class NoisyOracle(BaseOracle):
     """Server type 2: leaks only timing. `query` returns a float.
 
-    The float is ONE timing sample, in time units (the real unit is confirmed
-    by T2 against Canvel). Valid padding tends to take longer than invalid.
+    The float is ONE timing sample, in milliseconds (Canvel 2003, Fig. 3).
+    Valid padding tends to take longer than invalid.
     The oracle NEVER reveals the true yes/no: the attacker must decide from
     repeated samples (that is the whole point of Tiers 2 and 3).
     """

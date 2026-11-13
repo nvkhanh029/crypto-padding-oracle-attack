@@ -4,7 +4,7 @@
 **Purpose:** which word list we use, how it is split for testing, and how the secret word sits in the AES block. <br>
 **Audience:** owners of the word list, Tier 2 and Tier 3 tasks, and the report writer. <br>
 **Status:** decided (D11, D12 and D15 in [decisions.md](decisions.md)). <br>
-**Last updated:** 06/11/2026.
+**Last updated:** 11/11/2026.
 
 **Why this file exists:** Canvel's word list is cited only as "English Word List" [5] and cannot be rebuilt. We use a public list instead. Our numbers will differ from Canvel's; the report must say so.
 
@@ -53,8 +53,8 @@ Counts from the team's code (05/11/2026). The files are nested: each file contai
 
 - Canvel et al. (Sec. 4.3) selected only words of 8 characters, giving **712,786**. This is the count after filtering the Elcomsoft list [5], not the size of the whole list. It is far too large for a clean English dictionary, and why is unknown. In the report, write "an 8-character subset of a large word list".
 - Our list has 36,322 eight-letter words, about 20 times fewer. Fewer candidates mean fewer sessions, so our Tier 2 numbers will **not** match 166 vs 4,239. Do not reuse C₀ = 31 or 166 as expected values.
-- Canvel's analysis uses 8-byte blocks (b = 8, DES/3DES) and never mentions AES. The likely reason for 8 characters is the block size (our inference, not stated by the authors).
-- All Canvel facts here were read through a summarizer tool, not the PDF. The owner of T2 (section 6) must check Sec. 4.1, 4.3, 5.2, Table 1 and reference [5] in the PDF.
+- Canvel's analysis uses 8-byte blocks (b = 8, DES/3DES) and never mentions AES. They used 8 characters because one 8-character password then fills exactly one block (Sec. 1.1, 4.3).
+- All Canvel facts here are checked against the published paper: [canvel-fact-check.md](canvel-fact-check.md).
 
 ## 3. Block layout
 
@@ -66,9 +66,9 @@ Decided in D15. AES blocks are **16 bytes**; an 8-letter word fills half a block
 | 9–16 | The 8-letter secret word |
 
 - The attack recovers bytes from last to first, so it reaches the word first and can stop after 8 bytes. With a perfect oracle that is about 8 × 128 = 1,024 queries per block (our arithmetic, from D14).
-- Because bytes come right to left, the trigram prior should predict each letter from the letters to its **right** (a reversed trigram: build the model on reversed words). This is our inference; the Tier 3 owner checks it before coding.
+- Because bytes come right to left, the trigram prior should predict each letter from the letters to its **right** (a reversed trigram: build the model on reversed words). Checked by the Tier 3 owner.
 - The secret word is invented to measure the attack. The layout is a test setup, not a security choice.
-- **Limit:** this is the easy alignment. A real system may be harder. For example, in Canvel's test the secret shared a block with the line ending and the MAC (Sec. 5.2, to check in the PDF). Our results apply to this layout only; the report says so.
+- **Limit:** this is the easy alignment. A real system may be harder. For example, in Canvel's test the last password bytes could share a block with the line ending and the MAC, and then could not be recovered (Sec. 5.2). Our results apply to this layout only; the report says so.
 - C₀ and the session numbers are recomputed for our setup.
 
 ## 4. Test method
