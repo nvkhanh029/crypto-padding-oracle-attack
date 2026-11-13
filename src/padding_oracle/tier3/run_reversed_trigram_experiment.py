@@ -17,8 +17,7 @@ import math
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from reversed_trigram_prior import ReversedTrigramPrior
-
+from padding_oracle.tier3.reversed_trigram_prior import ReversedTrigramPrior
 BANDS = ("A", "B", "C", "D")
 SPLITS = ("train", "dev", "test")
 GRID_MIN_EXP = -4.0
@@ -227,100 +226,10 @@ def write_results_csv(path, k, main, control):
         writer.writeheader()
         writer.writerows(rows)
 
-
-def make_report(path, split_counts, k, dev_loss, main, control):
-    """Write a concise reproducibility report."""
-    lines = [
-        "# Reversed trigram prior with add-k smoothing",
-        "",
-        "## Dataset and split",
-        "",
-        "Input: `words8.csv`. All records were validated as unique, lowercase ASCII words of exactly eight bytes.",
-        "The supplied `split` column was used unchanged; no reshuffling or resplitting was performed.",
-        "",
-        "| Band | Train | Dev | Test |",
-        "|---|---:|---:|---:|",
-    ]
-    for band in BANDS:
-        lines.append("| " + band + " | " + " | ".join(
-            str(split_counts[(band, split)]) for split in SPLITS
-        ) + " |")
-    lines += [
-        "| **Total** | **{}** | **{}** | **{}** |".format(
-            sum(split_counts[("A", s)] + split_counts[("B", s)] +
-                split_counts[("C", s)] + split_counts[("D", s)] for s in SPLITS)
-            if False else sum(split_counts[(b, "train")] for b in BANDS),
-            sum(split_counts[(b, "dev")] for b in BANDS),
-            sum(split_counts[(b, "test")] for b in BANDS),
-        ),
-        "",
-        "## Model definition",
-        "",
-        "The prior predicts the byte immediately left of the recovered suffix. Suffix bytes are ordered nearest-to-farthest.",
-        "- Empty suffix: unigram distribution.",
-        "- One-byte suffix: bigram conditional distribution.",
-        "- Two or more suffix bytes: trigram conditional distribution using the first two suffix bytes.",
-        "- Alphabet: all 256 byte values.",
-        "- Add-k: `P(b|s) = (C(s,b) + k) / (C(s) + 256k)`, so every probability is strictly positive.",
-        "- Train-only model: counts are fitted exclusively on the 25,426 training words.",
-        "",
-        "## Dev tuning",
-        "",
-        f"Chosen `k = {k:.15g}` from a fixed grid of {GRID_POINTS} logarithmically spaced values between 1e-4 and 1e2.",
-        f"Selection objective: minimum dev average negative log-likelihood = {dev_loss:.8f} bits/byte, averaging positions within each word and then words uniformly.",
-        "",
-        "## Test results",
-        "",
-        "| Model | Words | Bits/byte (NLL) | Expected top-1 | Zero-count trigram occurrences | Share | Distinct zero-count trigram types | Share |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
-    ]
-    for name, result in (("Train only", main), ("Train = test (leakage control)", control)):
-        lines.append(
-            f"| {name} | {result['n_words']} | {result['bits_per_byte']:.6f} | "
-            f"{result['expected_top1']:.4%} | {result['zero_trigram_occurrences']:,}/"
-            f"{result['trigram_occurrences']:,} | {result['zero_trigram_occurrence_share']:.4%} | "
-            f"{result['zero_distinct_test_trigrams']:,}/{result['distinct_test_trigrams']:,} | "
-            f"{result['zero_distinct_trigram_share']:.4%} |"
-        )
-    lines += [
-        "",
-        "The test set was evaluated once for the train-only model after k selection. The control deliberately fits on the test words and evaluates on those same words; it leaks the answers and is not a valid held-out estimate. The control reuses the dev-selected k.",
-        "",
-        "## Per-band side analysis (train-only model)",
-        "",
-        "| Band | Test words | Bits/byte (NLL) | Expected top-1 | Zero-count trigram occurrence share | Distinct zero-count trigram share |",
-        "|---|---:|---:|---:|---:|---:|",
-    ]
-    for band in BANDS:
-        m = main["per_band"][band]
-        lines.append(
-            f"| {band} | {m['n_words']:,} | {m['bits_per_byte']:.6f} | "
-            f"{m['expected_top1']:.4%} | {m['zero_trigram_occurrence_share']:.4%} | "
-            f"{m['zero_distinct_trigram_share']:.4%} |"
-        )
-    lines += [
-        "",
-        "## Interpretation notes",
-        "",
-        "- `bits/byte` is the mean byte negative log-likelihood in bits; lower is better.",
-        "- `Expected top-1` gives ties uniform random tie-breaking, avoiding arbitrary wins from byte ordering.",
-        "- Occurrence share counts every eligible test position (the first six positions per eight-byte word have two or more bytes to their right).",
-        "- Distinct-type share counts unique `(two-byte suffix, target byte)` combinations in the test set.",
-        "- The zero-count trigram diagnostic concerns the exact two-byte-context trigram count in training; add-k still assigns it nonzero probability.",
-        "",
-        "## Reproducibility",
-        "",
-        "No random split or random sampling was performed by this script. The dataset's existing split assignments were retained. The fixed k grid is embedded in the script.",
-        "",
-        "The callable prior implementation is in `reversed_trigram_prior.py`; `prior(suffix)` returns 256 probabilities indexed by byte value 0 through 255.",
-    ]
-    path.write_text("\\n".join(lines) + "\\n", encoding="utf-8")
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", type=Path, default=Path("words8.csv"))
-    parser.add_argument("--output", type=Path, default=Path("reversed_trigram_results.csv"))
+    parser.add_argument("--data", type=Path, default=Path("data/wordlist/words8.csv"))
+    parser.add_argument("--output", type=Path, default=Path("results/reversed_trigram_results.csv"))
     parser.add_argument("--report", type=Path, default=Path("reversed_trigram_report.md"))
     args = parser.parse_args()
 
@@ -351,7 +260,6 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     write_results_csv(args.output, k, main_result, control_result)
-    make_report(args.report, split_counts, k, dev_loss, main_result, control_result)
 
     summary = {
         "k": k,
