@@ -8,8 +8,9 @@ Sequential Halving (Karnin, Koren and Somekh, 2013): split the 256 candidate
 bytes round by round, query every remaining candidate a number of times from
 the query budget, keep the half with the highest mean timing (padding right
 takes longer: MU_R > MU_W), and accept the last survivor. It uses no prior
-and no probability threshold. Samples from earlier rounds are kept: the mean
-after round k uses all samples drawn so far (Karnin et al., Algorithm 2).
+and no probability threshold. Each round uses only the samples drawn in that
+round: the mean after round r is the average of its t_r samples (Karnin et
+al., Algorithm 2, line 3).
 
 The two baselines use the query budget differently, so T12b must convert the
 units before comparing them:
@@ -101,10 +102,10 @@ def sequential_halving_byte(
     `budget // (|S| * SH_ROUNDS)` times; the half with the highest mean
     timing survives. After the last round one candidate is left.
 
-    The mean after a round uses all samples drawn for that candidate so far,
-    including earlier rounds (Karnin et al., Algorithm 2). The floor is
-    applied in every round, so part of the budget can stay unused; B=3000
-    uses 2666 queries for this byte, and B need not be a multiple of 2048.
+    The mean after a round uses only the samples drawn in that round
+    (Karnin et al., Algorithm 2, line 3). The floor is applied in every
+    round, so part of the budget can stay unused; B=3000 uses 2666 queries
+    for this byte, and B need not be a multiple of 2048.
 
     The forged block uses fresh random bytes to the left of `position`, as
     in the T10 attack: a wrong guess cannot keep a shorter padding valid by
@@ -122,23 +123,23 @@ def sequential_halving_byte(
 
     candidates = list(range(N_CANDIDATES))
     pad = BLOCK_SIZE - position
-    totals = {guess: 0.0 for guess in candidates}
-    counts = {guess: 0 for guess in candidates}
 
     for _ in range(SH_ROUNDS):
         samples_each = budget // (len(candidates) * SH_ROUNDS)
+        scores = []
         for guess in candidates:
+            total = 0.0
             for _ in range(samples_each):
-                totals[guess] += oracle.query(
+                total += oracle.query(
                     _forge_block(prev, target, position, guess, known, pad, rng)
                 )
-            counts[guess] += samples_each
+            scores.append(total / samples_each)
 
-        # Padding right takes longer, so keep the highest cumulative means.
-        order = sorted(candidates, key=lambda c: totals[c] / counts[c],
+        # Padding right takes longer, so keep the highest means of this round.
+        order = sorted(range(len(candidates)), key=lambda i: scores[i],
                        reverse=True)
         keep = max(1, len(candidates) // 2)
-        candidates = order[:keep]
+        candidates = [candidates[i] for i in order[:keep]]
 
     return candidates[0]
 

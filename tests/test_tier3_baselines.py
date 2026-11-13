@@ -98,7 +98,7 @@ def test_sequential_halving_recovers_the_word_with_noise_off():
         oracle, ct, 8, budget_per_byte=2048, seed=1
     )
     assert got == WORD
-    assert oracle.queries == 8 * 2048       # each round spends the whole budget
+    assert oracle.queries == 8 * 2048       # 8 rounds x 256 queries per byte
 
 
 def test_sequential_halving_recovers_a_full_block_with_noise_off():
@@ -142,7 +142,7 @@ def test_sequential_halving_leaves_unused_budget_after_flooring():
 
 
 class _ScriptedOracle(NoisyOracle):
-    """Return scripted timings for two candidates, to test sample reuse."""
+    """Return scripted timings for two candidates, round by round."""
 
     def __init__(self, prev: bytes, position: int, pad: int,
                  candidate_a: int, candidate_b: int) -> None:
@@ -171,9 +171,9 @@ class _ScriptedOracle(NoisyOracle):
         return 0.0
 
 
-def test_sequential_halving_reuses_samples_from_earlier_rounds():
-    # Round 1: A=1000, B=1. Round 8: A=0, B=2.
-    # Only current-round means would pick B; cumulative means pick A.
+def test_sequential_halving_counts_only_the_current_round_samples():
+    # Round 1: A=1000, B=1, so both survive. Round 8: A=0, B=2.
+    # Per-round means pick B; cumulative means would pick A.
     candidate_a, candidate_b = 65, 66
     oracle = _ScriptedOracle(
         bytes(16), 15, 1, candidate_a, candidate_b
@@ -181,7 +181,7 @@ def test_sequential_halving_reuses_samples_from_earlier_rounds():
     got = sequential_halving_byte(
         oracle, bytes(16), bytes(16), 15, {}, 2048, random.Random(0)
     )
-    assert got == candidate_a
+    assert got == candidate_b
 
 
 def test_sequential_halving_accepts_extra_harness_params():
