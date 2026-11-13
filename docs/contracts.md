@@ -1,9 +1,9 @@
 # Contracts
 
-**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH.
-**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles.
-**Audience:** all team members, and any AI tool helping with code (paste this file into it).
-**Last updated:** 11/11/2026.
+**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
+**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles. <br>
+**Audience:** all team members, and any AI tool helping with code (paste this file into it). <br>
+**Last updated:** 13/11/2026.
 
 > **Exact names are in `src/padding_oracle/core/contracts.py`. If this document and that file disagree, the code is right.**
 
@@ -48,7 +48,7 @@ def attack(oracle, ciphertext: bytes, n_bytes: int, **params) -> bytes
 
 - `ciphertext`: exactly two blocks (32 bytes), the previous block (or IV) plus the target block. All experiments attack one block at a time.
 - `n_bytes`: how many bytes to recover, from the end of the block: 16 (Tier 1) or 8 (the D15 word layout).
-- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column.
+- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column. An attack with a query budget takes it as `max_queries`: the budget for the whole attack (all `n_bytes` bytes), the same name for every such attack.
 - Returns the recovered bytes. The harness compares them with the truth (`success`) and reads `oracle.queries` (`queries`).
 
 **The Canvel-style sequential test** (T7 provides it, T8a calls it):
@@ -69,7 +69,7 @@ One row = **one attack on one target** (one random block or one test word). Succ
 |---|---|---|
 | `experiment` | Groups rows | `tier1_reproduction` |
 | `attack` | Which attack | `vaudenay`, `posterior_trigram` |
-| `oracle` | Oracle class name | `FakePerfectOracle`, `PerfectOracle` |
+| `oracle` | Oracle class name | `FakePerfectOracle`, `AESPerfectOracle` |
 | `seed` | Integer, to repeat the run | `42` |
 | `target` | The target | `random_block_017` or the secret word |
 | `band` | `A`–`D` for a word, empty for a random block | `C` |
@@ -78,7 +78,7 @@ One row = **one attack on one target** (one random block or one test word). Succ
 | `success` | `1` if every attacked byte is correct, else `0` | `1` |
 | `params` | Settings as text, may be empty | `delta=0.001;k=...` |
 
-δ = 0.001 (D18). k is not chosen yet (chosen on dev, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
+δ = 0.001 (D18). k = 0.0079 (chosen on dev with the T9 prior, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
 
 ## 6. Word list file
 

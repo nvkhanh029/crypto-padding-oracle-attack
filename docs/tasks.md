@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** who does what, by when, and what must be ready before a task can start. <br>
 **Audience:** all team members. <br>
-**Last updated:** 11/11/2026.
+**Last updated:** 13/11/2026.
 
 | Key dates | |
 |---|---|
@@ -22,8 +22,8 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 | An Khánh | T2, T10, R4 |
 | Duy (report owner) | R1, R2, R3, R5, R6 |
 | Kiên | T3, T4, T9 |
-| Hải | T6, T7, T12b |
-| Linh | T8a, T13b, T11, T8b |
+| Hải | T6, T7, T11, T12b |
+| Linh | T8a, T13b, T8b |
 | Minh | T1, T13, T5, T12a |
 
 ## 2. Calendar and rules
@@ -40,17 +40,17 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 ## 3. Reviews and backups
 
-| Author | First review | Then |
-|---|---|---|
-| Vân Khánh | Duy | – |
-| An Khánh | – | Vân Khánh (core) |
-| Kiên (T3, T4 core code) | – | Vân Khánh |
-| Kiên (T9) | – | Vân Khánh (short checklist) |
-| Hải | Duy | Vân Khánh |
-| Linh | – | Vân Khánh (short checklist) |
-| Minh | – | Vân Khánh |
+| Author | Reviewer |
+|---|---|
+| Vân Khánh | Hải |
+| An Khánh | Vân Khánh (core) |
+| Kiên (T3, T4 core code) | Vân Khánh |
+| Kiên (T9) | Vân Khánh (short checklist) |
+| Hải | Vân Khánh |
+| Linh | Vân Khánh (short checklist) |
+| Minh | Vân Khánh |
 
-**Backups:** Vân Khánh for T3 and T4. An Khánh for T9, T11 and T12b. Kiên takes over T12a if it slips. Hải for T8a and T8b. T5 falls back to text only (D13).
+**Backups:** An Khánh for T8a and T8b. Kiên takes over T12a if it slips. T5 falls back to text only (D13).
 
 ## 4. Tasks
 
@@ -62,13 +62,13 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 - Done when: Kiên, Hải, Linh and Minh can code against it without asking.
 
 **T0b: Repo, CI, smoke tests, AI rules file** (Vân Khánh, due Fri 06/11). Depends on: T0a.
-- Repo, CI with 3–5 smoke tests (create a block, run the Tier 1 attack on a small case, write an output file), AI rules file, Python version and requirements that work on a Windows laptop with 8 GB RAM.
+- Repo, CI with 3–5 smoke tests (create a block, run the Tier 1 attack on a small case, write an output file), AI rules file, Python version and requirements.
 
 **E1: Explainer sheet** (Vân Khánh, due Fri 13/11). Depends on: the Tier 3 results taking shape.
 - One page: what the project does, architecture, who owns which part, 5–6 likely questions with suggested answers. Everyone reads it.
 
 **M1: Final merge and demo build** (Vân Khánh, due Sat 14/11). Depends on: all code tasks.
-- Merge, run everything from a clean checkout on a Windows laptop, fix only blocking problems.
+- Merge, run everything from a clean checkout, fix only blocking problems.
 
 ### 4.2 Tier 1 and countermeasures
 
@@ -123,13 +123,14 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 - Accept a candidate when its posterior is above 1 − δ, with **δ = 0.001 per byte (D18)**; one shared posterior; reuse old samples.
 - **Check:** that our rule is the posterior form of the Baum–Veeravalli MSPRT (our derivation; read the primary paper).
 
-**T11: NCC and Sequential Halving baselines** (Linh, due Thu 12/11). Depends on: T10, T6.
+**T11: NCC and Sequential Halving baselines** (Hải, due Thu 12/11). Depends on: T10, T6.
 - NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule. **Same δ as T10 (D18).**
-- Sequential Halving, the extra baseline. Steps, for one byte with n candidates and a total query budget B:
+- Sequential Halving, the extra baseline. Like NCC, it takes `max_queries`, the query budget for the **whole word** (all `n_bytes` bytes). Each byte gets B = `max_queries` ÷ `n_bytes`. It needs B ≥ 2,048 (256 candidates × 8 rounds), so `max_queries` ≥ 16,384 for the 8-byte word; below that it raises an error. Steps, for one byte with n candidates and a byte budget B:
   1. Number of rounds R = ⌈log₂ n⌉.
   2. In each round, query every remaining candidate ⌊B / (|S| · R)⌋ times, where |S| is the number of remaining candidates.
   3. Keep the half with the highest mean timing (correct padding takes longer: μ_R > μ_W). Drop the rest.
   4. After R rounds, one candidate is left: accept it.
+- Every round rounds down, so part of B can stay unused (B = 3,000 uses 2,666). The harness records the real `oracle.queries`.
 - **Check:** Sequential Halving follows Karnin et al. (2013) (read the primary paper).
 
 **T12a: Evaluation harness** (Minh). Depends on: T0a stub, then T4, T7, T8a.
@@ -138,6 +139,8 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T12b: Tier 3 experiments and charts** (Hải, due Fri 13/11). Depends on: T10, T11, T12a, T9, and the experiment spec.
 - Experiment spec (An Khánh, Thu 12/11 morning, half a page): which runs, the query budget grid, the table layout. δ = 0.001 is fixed (D18).
+- **Budget unit: queries per word.** Every attack gets `max_queries` = the grid value. Sequential Halving runs only at grid values ≥ 16,384; lower points are skipped for it. The success-rate chart has a log x-axis and uses the measured `queries` column, not the grid value.
+- The harness checks that the measured queries per word do not go above the grid value (a run above it means a budget was ignored).
 - Run the harness with the spec: compare all methods at the same measured error rate; per band; random-bytes control (expect no gain); "train = test" control; success rate vs query budget chart.
 - **Check:** the real error rate when the prior is wrong (random bytes). The error ≤ δ guarantee only holds when the prior and noise model are correct.
 
