@@ -14,7 +14,7 @@ Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist
 ## 1. The rule for everyone
 
 - Build and test your module against the **fake oracles** (`core/fakes.py`).
-- An attack **receives** its oracle as a parameter. It never creates one. So the same attack runs against the fake oracle, the real oracle and the countermeasure servers.
+- An attack **receives** its oracle as a parameter. It never creates one. Future oracle adapters should preserve this interface.
 - When the real oracle is merged (T3b perfect, T6 noisy), use the real one for experiments. Smoke tests keep using the fake one (fast, no AES library).
 - Never count queries yourself. The oracle counts.
 - Python 3.11 or newer.
@@ -23,7 +23,7 @@ Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist
 
 | Item | Rule | Why |
 |---|---|---|
-| Input | `oracle.query(ciphertext: bytes)`. The ciphertext is the IV followed by 16-byte blocks: length a multiple of 16 and at least 32. | It works like a real server. The countermeasure servers (T5: Encrypt-then-MAC, AES-GCM) use the same call, so the Tier 1 attack runs on them unchanged and we can show it fails. |
+| Input | `oracle.query(ciphertext: bytes)`. The ciphertext is the IV followed by 16-byte blocks: length a multiple of 16 and at least 32. | It works like a real server. |
 | Perfect oracle | Returns `bool`: `True` = padding valid. | Server type 1 (different error messages). |
 | Noisy oracle | Returns `float`: one timing sample, in **time units**. It never reveals the truth. | Server type 2 (same message, small timing difference). Tiers 2 and 3 must decide from repeated samples. |
 | Counter | `oracle.queries` goes up by exactly 1 per `query()` call. `oracle.reset()` sets it to 0. The noisy oracle's inner padding check is not counted. A rejected (malformed) ciphertext is not counted. | One place to count, so no attack can forget or count twice (D14: a query counted twice gives +100% error and Tier 1 would fail). |
@@ -60,6 +60,8 @@ def sequential_check(oracle, ciphertext: bytes, **params) -> bool
 It asks the noisy oracle about the same ciphertext again and again until it is confident, then returns `True` (padding judged valid) or `False`. The thresholds go in `params`; their values are T7's job. This matches our reading of Canvel's `Check4`; T2 checks it in the PDF. If T2 finds a difference, only the body changes, not the signature.
 
 **Stubs** (`fakes.py`): `stub_attack` (one query, returns zero bytes) lets the harness (T12a) run before any real attack exists. `stub_sequential_check` (one sample, compared with the middle of the two means) lets T8a start before T7 is merged. Replace them when the real ones are merged.
+
+The evaluator is in `src/padding_oracle/harness/evaluation.py`. `run_experiment` takes an attack callable and oracle as inputs, writes one row per target using `CSV_COLUMNS`, and records `AttackFailure` as `success=0` with the observed query count. Unexpected exceptions propagate. `scripts/run_harness_demo.py` demonstrates T12a-1 using only `stub_attack`; Tier 1 and Tier 2 attack implementations are not present in this branch, so T12a-2 is not integrated.
 
 ## 5. Results file (one CSV per experiment, in `results/`)
 

@@ -12,8 +12,8 @@ Guide for the team
 ------------------
 - Build and test your module against the FAKE oracles in `fakes.py`.
 - An attack never makes its own oracle: it RECEIVES one as a parameter, so the
-  same attack runs against the fake oracle, the real oracle (T3b, T6) and the
-  countermeasure servers (T5) without changing a line.
+  same attack can run against the fake oracle, the real oracle (T3b, T6), and
+  future countermeasure adapters without changing its interface.
 - When the real oracle is merged, use it for the experiments. The smoke tests
   keep using the fake one (it is fast and needs no AES library).
 - Every query goes through `oracle.query(...)`, which counts it exactly once.
