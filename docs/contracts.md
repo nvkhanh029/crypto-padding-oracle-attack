@@ -1,8 +1,8 @@
 # Contracts
 
-**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH.
-**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles.
-**Audience:** all team members, and any AI tool helping with code (paste this file into it).
+**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
+**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles. <br>
+**Audience:** all team members, and any AI tool helping with code (paste this file into it). <br>
 **Last updated:** 13/11/2026.
 
 > **Exact names are in `src/padding_oracle/core/contracts.py`. If this document and that file disagree, the code is right.**
@@ -48,7 +48,7 @@ def attack(oracle, ciphertext: bytes, n_bytes: int, **params) -> bytes
 
 - `ciphertext`: exactly two blocks (32 bytes), the previous block (or IV) plus the target block. All experiments attack one block at a time.
 - `n_bytes`: how many bytes to recover, from the end of the block: 16 (Tier 1) or 8 (the D15 word layout).
-- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column.
+- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column. An attack with a query budget takes it as `max_queries`: the budget for the whole attack (all `n_bytes` bytes), the same name for every such attack.
 - Returns the recovered bytes. The harness compares them with the truth (`success`) and reads `oracle.queries` (`queries`).
 
 **The Canvel-style sequential test** (T7 provides it, T8a calls it):
