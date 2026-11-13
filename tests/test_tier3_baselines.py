@@ -95,7 +95,7 @@ def test_sequential_halving_recovers_the_word_with_noise_off():
     ct = two_blocks(PREFIX + WORD)
 
     got = sequential_halving_attack(
-        oracle, ct, 8, budget_per_byte=2048, seed=1
+        oracle, ct, 8, max_queries=8 * 2048, seed=1
     )
     assert got == WORD
     assert oracle.queries == 8 * 2048       # 8 rounds x 256 queries per byte
@@ -106,7 +106,7 @@ def test_sequential_halving_recovers_a_full_block_with_noise_off():
     oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
 
     got = sequential_halving_attack(
-        oracle, two_blocks(plain), 16, budget_per_byte=2048, seed=2
+        oracle, two_blocks(plain), 16, max_queries=16 * 2048, seed=2
     )
     assert got == plain
 
@@ -114,31 +114,33 @@ def test_sequential_halving_recovers_a_full_block_with_noise_off():
 def test_sequential_halving_works_under_noise():
     oracle = f.FakeNoisyOracle(seed=5)
     got = sequential_halving_attack(
-        oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=20000, seed=5
+        oracle, two_blocks(PREFIX + WORD), 8, max_queries=8 * 20000, seed=5
     )
     assert got == WORD
 
 
 def test_sequential_halving_stays_inside_the_budget():
     oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
-    budget = 3000
+    budget_per_byte = 3000
+    max_queries = 8 * budget_per_byte
 
     got = sequential_halving_attack(
-        oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=budget, seed=3
+        oracle, two_blocks(PREFIX + WORD), 8, max_queries=max_queries, seed=3
     )
     assert len(got) == 8
-    assert 0 < oracle.queries <= 8 * budget
+    assert 0 < oracle.queries <= max_queries
 
 
 def test_sequential_halving_leaves_unused_budget_after_flooring():
     oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
-    budget = 3000
+    budget_per_byte = 3000
+    max_queries = 8 * budget_per_byte
 
     sequential_halving_attack(
-        oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=budget, seed=3
+        oracle, two_blocks(PREFIX + WORD), 8, max_queries=max_queries, seed=3
     )
-    assert oracle.queries == 8 * _sh_queries_per_byte(budget)
-    assert oracle.queries < 8 * budget
+    assert oracle.queries == 8 * _sh_queries_per_byte(budget_per_byte)
+    assert oracle.queries < max_queries
 
 
 class _ScriptedOracle(NoisyOracle):
@@ -187,24 +189,37 @@ def test_sequential_halving_counts_only_the_current_round_samples():
 def test_sequential_halving_accepts_extra_harness_params():
     oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
     got = sequential_halving_attack(
-        oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=2048,
+        oracle, two_blocks(PREFIX + WORD), 8, max_queries=8 * 2048,
         seed=4, k=0.1, delta=0.5,
     )
     assert len(got) == 8
+
+
+def test_sequential_halving_requires_max_queries_not_budget_per_byte():
+    oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
+    with pytest.raises(TypeError):
+        sequential_halving_attack(
+            oracle, two_blocks(PREFIX + WORD), 8, budget_per_byte=8 * 2048
+        )
 
 
 def test_sequential_halving_rejects_a_budget_below_one_sample_per_round():
     oracle = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
     ct = two_blocks(PREFIX + WORD)
 
-    for budget in (0, 2047):
+    for max_queries in (0, 8 * 2048 - 1):
         with pytest.raises(ValueError):
             sequential_halving_attack(
-                oracle, ct, 8, budget_per_byte=budget
+                oracle, ct, 8, max_queries=max_queries
             )
     with pytest.raises(ValueError):
         sequential_halving_attack(
-            oracle, ct, 8, budget_per_byte=2048.0
+            oracle, ct, 8, max_queries=8 * 2048.0
+        )
+    # A 16-byte block needs twice the minimum.
+    with pytest.raises(ValueError):
+        sequential_halving_attack(
+            oracle, ct, 16, max_queries=16 * 2048 - 1
         )
 
 
@@ -214,12 +229,12 @@ def test_sequential_halving_rejects_bad_inputs():
 
     with pytest.raises(ValueError):
         sequential_halving_attack(
-            oracle, ct + bytes(16), 8, budget_per_byte=2048
+            oracle, ct + bytes(16), 8, max_queries=8 * 2048
         )
     for n_bytes in (0, 17):
         with pytest.raises(ValueError):
             sequential_halving_attack(
-                oracle, ct, n_bytes, budget_per_byte=2048
+                oracle, ct, n_bytes, max_queries=8 * 2048
             )
 
 

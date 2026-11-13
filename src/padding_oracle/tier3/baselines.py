@@ -12,13 +12,13 @@ and no probability threshold. Each round uses only the samples drawn in that
 round: the mean after round r is the average of its t_r samples (Karnin et
 al., Algorithm 2, line 3).
 
-The two baselines use the query budget differently, so T12b must convert the
-units before comparing them:
-- NCC stops when the posterior passes 1 - delta; `max_queries` is optional and
-  counts the whole attack (one word), not one byte.
-- Sequential Halving needs `budget_per_byte`; one 8-byte word can use up to
-  about 8 * budget_per_byte queries. The floor in each round can leave part of
-  that budget unused, so the budget need not be a multiple of 2048.
+The two baselines use the same budget unit as the T10 attack: `max_queries`
+counts the whole attack (one word), not one byte.
+- NCC stops when the posterior passes 1 - delta; `max_queries` is optional.
+- Sequential Halving requires `max_queries` and needs at least
+  2048 * n_bytes queries (16,384 for the 8-byte D15 word). It splits the
+  budget into `max_queries // n_bytes` per byte; rounding down can leave
+  part of the budget unused.
 
 T12b compares the methods at the same measured error rate and on the same
 query-budget grid.
@@ -65,8 +65,8 @@ def ncc_attack(
     only difference from our attack is the prior.
 
     `max_queries` is optional. If set, it is the budget for the whole attack
-    (all `n_bytes` bytes), not per byte. Without it, the attack stops when the
-    posterior passes 1 - delta.
+    (all `n_bytes` bytes, i.e. one word), not per byte. Without it, the attack
+    stops when the posterior passes 1 - delta.
 
     Extra `params` (for example k for the CSV) are accepted and ignored. They
     are deliberately not forwarded to `posterior_attack`: a `prior` in
@@ -149,18 +149,17 @@ def sequential_halving_attack(
     ciphertext: bytes,
     n_bytes: int,
     *,
-    budget_per_byte: int,
+    max_queries: int,
     seed: int = 0,
     **params,
 ) -> bytes:
     """Sequential Halving baseline for `n_bytes` bytes (the Attack shape).
 
-    `budget_per_byte` is the B from the T11 spec, applied to each byte in
-    turn. The total budget for the attack is at most
-    `n_bytes * budget_per_byte`; for the D15 word (8 bytes) that is about
-    eight times this value, and can be less because each round rounds down.
-    This is different from `ncc_attack`'s `max_queries`, which is the budget
-    for the whole attack.
+    `max_queries` is the budget for the whole attack (one word), the same
+    unit as `ncc_attack`. Sequential Halving needs at least
+    `2048 * n_bytes` queries (16,384 for the 8-byte D15 word). The budget is
+    split into `max_queries // n_bytes` per byte; rounding down can leave
+    part of the budget unused.
 
     The attack recovers bytes from the end of the target block, so
     `n_bytes=8` is the D15 word layout. No prior and no timing model are
@@ -173,13 +172,13 @@ def sequential_halving_attack(
         raise ValueError("ciphertext must be exactly two blocks (32 bytes)")
     if not isinstance(n_bytes, int) or not 1 <= n_bytes <= BLOCK_SIZE:
         raise ValueError(f"n_bytes must be between 1 and {BLOCK_SIZE}")
-    if not isinstance(budget_per_byte, int) or budget_per_byte < (
-        N_CANDIDATES * SH_ROUNDS
-    ):
+    min_queries = (N_CANDIDATES * SH_ROUNDS) * n_bytes
+    if not isinstance(max_queries, int) or max_queries < min_queries:
         raise ValueError(
-            "budget_per_byte must be an integer of at least "
-            f"{N_CANDIDATES * SH_ROUNDS}"
+            "max_queries must be an integer of at least "
+            f"{min_queries} for {n_bytes} bytes"
         )
+    budget_per_byte = max_queries // n_bytes
 
     prev = ciphertext[:BLOCK_SIZE]
     target = ciphertext[BLOCK_SIZE:]
