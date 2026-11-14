@@ -1,10 +1,34 @@
-"""T8b: the three D14 pattern checks for Tier 2.
+"""T8b: Tier 2 experiments and the three D14 pattern checks, on real AES-CBC.
 
-Tier 2 has no number threshold like Tier 1's "±5% of 128" — it is checked by
-pattern: dictionary beats random block, the sequential test beats a fixed-
-sample one, and noise off matches Tier 1. The "fixed-sample" baseline is just
-T7's sequential_attack with tau pushed to +-infinity: no early stop, decide
-on the final sign after a set number of samples.
+Tier 2 has no number threshold like Tier 1's "within 5% of 128". It is checked
+by pattern (D14):
+
+  (1) the dictionary attack needs clearly fewer queries than the random block;
+  (2) the sequential test needs fewer queries than a fixed-sample test;
+  (3) with the noise turned off, Tier 2 recovers the same plaintext as Tier 1.
+
+Every row also records `success`, because a query count means nothing if the
+recovered bytes are wrong.
+
+Thresholds
+----------
+Check (1) uses Canvel's thresholds, Eq. (6)-(7) (`canvel_thresholds`), for the
+target success probability SUCCESS_TARGET. They depend on C0, the average
+number of candidates tried per block: a random block tries many more wrong
+candidates than a dictionary word, so it needs a much higher accept threshold.
+One fixed pair of thresholds for both attacks does not work: with a 1% false
+accept rate per candidate, a random byte (about 128 wrong candidates tried)
+is almost always accepted wrongly.
+
+Check (2) compares two tests designed for the SAME error rate EPSILON on both
+sides: the sequential test with `wald_thresholds(EPSILON, EPSILON)`, and a
+fixed-sample test that takes `fixed_sample_size(EPSILON)` samples for every
+candidate and accepts when the evidence is positive. The fixed-sample test is
+T7's `sequential_attack` with the thresholds at infinity (no early stop).
+
+From the repository root:
+    $env:PYTHONPATH = "src"
+    python -m padding_oracle.tier2.tier2_pattern_checks --seed 20261112
 """
 
 from __future__ import annotations
@@ -17,137 +41,271 @@ import statistics
 from pathlib import Path
 from statistics import NormalDist
 
-from padding_oracle.core.contracts import CSV_COLUMNS
-from padding_oracle.core.fakes import FakePerfectOracle, toy_block_encrypt
+from padding_oracle.core.contracts import BLOCK_SIZE, CSV_COLUMNS
+from padding_oracle.tier1.aes import aes_cbc_encrypt
 from padding_oracle.tier1.attack import attack as vaudenay_attack
-from padding_oracle.tier2 import (
-    MU_R, MU_W, SIGMA, GaussianTimingOracle, sequential_attack, wald_thresholds,
+from padding_oracle.tier1.oracle import AESPerfectOracle
+from padding_oracle.tier2.dictionary_attack import (
+    DEFAULT_WORDLIST_PATH,
+    make_candidate_order,
 )
-from padding_oracle.tier2.dictionary_attack import load_words, make_candidate_order
+from padding_oracle.tier2.noisy_oracle import MU_R, MU_W, SIGMA, GaussianTimingOracle
+from padding_oracle.tier2.sequential import (
+    canvel_thresholds,
+    dictionary_c0,
+    random_block_c0,
+    sequential_attack,
+    wald_thresholds,
+)
 
-PREFIX = b"filler12"   # known 8-byte prefix, layout D15
-N_TRIALS = 30           # trials per check — our own choice, not from a source
-EPSILON = 0.01          # false-accept/false-reject rate for T7's test — our own choice
+DEFAULT_SEED = 20261112
+N_TRIALS = 100          # targets per attack: our own choice (as Tier 1's 100 blocks)
+SUCCESS_TARGET = 0.5    # p in Canvel Eq. (6)-(7); 0.5 is the case of his 166 vs 4,239
+EPSILON = 0.01          # error rate of both tests in check (2): our own choice
+PREFIX = b"filler12"    # known 8-byte prefix (D15)
+WORD_BYTES = 8
+AES_KEY_SIZE = 16
 
 
-def _block_ciphertext(plain16: bytes, iv: bytes = bytes(16)) -> bytes:
-    """IV + one target block whose decrypted plaintext is exactly `plain16`."""
-    block = toy_block_encrypt(bytes(p ^ i for p, i in zip(plain16, iv)))
-    return iv + block
+def random_bytes(rng: random.Random, length: int) -> bytes:
+    """Generate deterministic bytes using the supplied RNG."""
+    return bytes(rng.getrandbits(8) for _ in range(length))
 
 
-def _row(experiment, attack, oracle, seed, target, band, n_bytes, queries, success, params):
-    return {"experiment": experiment, "attack": attack, "oracle": type(oracle).__name__,
-            "seed": seed, "target": target, "band": band, "bytes_attacked": n_bytes,
-            "queries": queries, "success": success, "params": params}
+def read_words_with_bands(path: Path | str = DEFAULT_WORDLIST_PATH) -> list[tuple[str, str]]:
+    """Read (word, band) for every row of the word-list CSV."""
+    with open(path, encoding="utf-8", newline="") as source:
+        return [(row["word"], row["band"]) for row in csv.DictReader(source)]
 
 
-def check1_dictionary_vs_random_block(words, rng, tau_lo, tau_hi):
-    """D14 (1): dictionary attack needs clearly fewer sessions than a random block."""
-    order_fn = make_candidate_order(words)
-    dict_rows, random_rows = [], []
+def fixed_sample_size(epsilon: float) -> int:
+    """Samples a fixed-sample test needs for error rate `epsilon` on both sides.
 
-    for i, word in enumerate(rng.sample(words, N_TRIALS), start=1):
+    The mean of n samples has standard deviation sigma / sqrt(n). Deciding at
+    the middle of the two means is wrong with probability epsilon when the
+    middle is z standard deviations away, with z the (1 - epsilon) quantile of
+    the standard normal: (mu_r - mu_w) / 2 = z * sigma / sqrt(n).
+    """
+    z = NormalDist().inv_cdf(1.0 - epsilon)
+    return math.ceil((2.0 * z * SIGMA / (MU_R - MU_W)) ** 2)
+
+
+def _challenge(plain16: bytes, key: bytes, rng: random.Random) -> bytes:
+    """IV + the one ciphertext block that decrypts to `plain16`."""
+    iv = random_bytes(rng, BLOCK_SIZE)
+    return aes_cbc_encrypt(plain16, key, iv)[:2 * BLOCK_SIZE]
+
+
+def _noisy_oracle(key: bytes, rng: random.Random, noise: bool = True) -> GaussianTimingOracle:
+    """A fresh timing oracle on real AES-CBC, with its own noise seed."""
+    return GaussianTimingOracle(AESPerfectOracle(key), seed=rng.getrandbits(32), noise=noise)
+
+
+def _row(experiment: str, attack: str, oracle, seed: int, target: str, band: str,
+         n_bytes: int, success: bool, params: str) -> dict[str, object]:
+    return {
+        "experiment": experiment,
+        "attack": attack,
+        "oracle": type(oracle).__name__,
+        "seed": seed,
+        "target": target,
+        "band": band,
+        "bytes_attacked": n_bytes,
+        "queries": oracle.queries,
+        "success": int(success),
+        "params": params,
+    }
+
+
+def _threshold_text(tau_lo: float, tau_hi: float) -> str:
+    return f"tau_lo={tau_lo:.3f};tau_hi={tau_hi:.3f}"
+
+
+def check1_dictionary_vs_random_block(words_with_bands, order_fn, c0_dictionary,
+                                      key, rng, seed, n_trials):
+    """D14 (1): the dictionary attack against the random-block baseline."""
+    experiment = "tier2_dict_vs_random"
+    rows = []
+
+    tau_lo, tau_hi = canvel_thresholds(c0_dictionary, WORD_BYTES, SUCCESS_TARGET)
+    params = (f"{_threshold_text(tau_lo, tau_hi)};p={SUCCESS_TARGET};"
+              f"c0={c0_dictionary:.2f};inner=AESPerfectOracle")
+    for word, band in rng.sample(words_with_bands, n_trials):
         target = word.encode("ascii")
-        ct = _block_ciphertext(PREFIX + target)
-        oracle = GaussianTimingOracle(FakePerfectOracle(), seed=rng.getrandbits(32))
-        rec = sequential_attack(oracle, ct, 8, tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=order_fn)
-        dict_rows.append(_row("tier2_dict_vs_random", "dictionary", oracle, i, f"word_{i:03d}", "",
-                               8, oracle.queries, int(rec == target),
-                               f"tau_lo={tau_lo:.3f};tau_hi={tau_hi:.3f}"))
+        oracle = _noisy_oracle(key, rng)
+        recovered = sequential_attack(
+            oracle, _challenge(PREFIX + target, key, rng), WORD_BYTES,
+            tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=order_fn)
+        rows.append(_row(experiment, "dictionary", oracle, seed, word, band,
+                         WORD_BYTES, recovered == target, params))
 
-    for i in range(1, N_TRIALS + 1):
-        secret = bytes(rng.getrandbits(8) for _ in range(8))
-        ct = _block_ciphertext(PREFIX + secret)
-        oracle = GaussianTimingOracle(FakePerfectOracle(), seed=rng.getrandbits(32))
-        rec = sequential_attack(oracle, ct, 8, tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=None)
-        random_rows.append(_row("tier2_dict_vs_random", "random_block", oracle, i, f"random_block_{i:03d}",
-                                 "", 8, oracle.queries, int(rec == secret),
-                                 f"tau_lo={tau_lo:.3f};tau_hi={tau_hi:.3f}"))
-    return dict_rows, random_rows
+    c0_random = random_block_c0(WORD_BYTES)
+    tau_lo, tau_hi = canvel_thresholds(c0_random, WORD_BYTES, SUCCESS_TARGET)
+    params = (f"{_threshold_text(tau_lo, tau_hi)};p={SUCCESS_TARGET};"
+              f"c0={c0_random:.2f};inner=AESPerfectOracle")
+    for number in range(1, n_trials + 1):
+        target = random_bytes(rng, WORD_BYTES)
+        oracle = _noisy_oracle(key, rng)
+        recovered = sequential_attack(
+            oracle, _challenge(PREFIX + target, key, rng), WORD_BYTES,
+            tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=None)
+        rows.append(_row(experiment, "random_block", oracle, seed,
+                         f"random_block_{number:03d}", "", WORD_BYTES,
+                         recovered == target, params))
+    return rows
 
 
-def check2_sequential_vs_fixed(words, rng, tau_lo, tau_hi, n_fixed):
-    """D14 (2): the sequential test needs fewer queries than the fixed-sample
-    method (Canvel's DecryptBlock2) — same candidate list, just no early stop."""
-    order_fn = make_candidate_order(words)
-    rows, seq_q, fixed_q = [], [], []
+def check2_sequential_vs_fixed(words_with_bands, order_fn, key, rng, seed, n_trials):
+    """D14 (2): the sequential test against a fixed-sample test, same error rate."""
+    experiment = "tier2_sequential_vs_fixed"
+    tau_lo, tau_hi = wald_thresholds(EPSILON, EPSILON)
+    n_fixed = fixed_sample_size(EPSILON)
+    sequential_params = (f"{_threshold_text(tau_lo, tau_hi)};epsilon={EPSILON};"
+                         "inner=AESPerfectOracle")
+    fixed_params = f"n_fixed={n_fixed};epsilon={EPSILON};inner=AESPerfectOracle"
+    rows = []
 
-    for i, word in enumerate(rng.sample(words, N_TRIALS), start=1):
+    for word, band in rng.sample(words_with_bands, n_trials):
         target = word.encode("ascii")
-        ct = _block_ciphertext(PREFIX + target)
+        challenge = _challenge(PREFIX + target, key, rng)
 
-        o1 = GaussianTimingOracle(FakePerfectOracle(), seed=rng.getrandbits(32))
-        rec1 = sequential_attack(o1, ct, 8, tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=order_fn)
-        seq_q.append(o1.queries)
-        rows.append(_row("tier2_sequential_vs_fixed", "sequential", o1, i, f"word_{i:03d}", "",
-                          8, o1.queries, int(rec1 == target), f"tau_lo={tau_lo:.3f};tau_hi={tau_hi:.3f}"))
+        oracle = _noisy_oracle(key, rng)
+        recovered = sequential_attack(
+            oracle, challenge, WORD_BYTES,
+            tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=order_fn)
+        rows.append(_row(experiment, "sequential", oracle, seed, word, band,
+                         WORD_BYTES, recovered == target, sequential_params))
 
-        o2 = GaussianTimingOracle(FakePerfectOracle(), seed=rng.getrandbits(32))
-        rec2 = sequential_attack(o2, ct, 8, tau_lo=-math.inf, tau_hi=math.inf,
-                                  max_samples=n_fixed, candidate_order=order_fn)
-        fixed_q.append(o2.queries)
-        rows.append(_row("tier2_sequential_vs_fixed", "fixed_sample", o2, i, f"word_{i:03d}", "",
-                          8, o2.queries, int(rec2 == target), f"n_fixed={n_fixed}"))
+        # Thresholds at infinity: no early stop. Every candidate gets exactly
+        # n_fixed samples and is accepted when its evidence is positive.
+        oracle = _noisy_oracle(key, rng)
+        recovered = sequential_attack(
+            oracle, challenge, WORD_BYTES,
+            tau_lo=-math.inf, tau_hi=math.inf, max_samples=n_fixed,
+            candidate_order=order_fn)
+        rows.append(_row(experiment, "fixed_sample", oracle, seed, word, band,
+                         WORD_BYTES, recovered == target, fixed_params))
+    return rows
 
-    ratio = statistics.mean(fixed_q) / statistics.mean(seq_q)
-    wrong_fixed = sum(1 for row in rows if row["attack"] == "fixed_sample" and not row["success"])
-    return rows, ratio, wrong_fixed
+
+def check3_noise_off_matches_tier1(key, rng, seed, n_trials):
+    """D14 (3): noise off, Tier 2 and Tier 1 recover the same full block."""
+    experiment = "tier2_noise_off"
+    tau_lo, tau_hi = canvel_thresholds(
+        random_block_c0(BLOCK_SIZE), BLOCK_SIZE, SUCCESS_TARGET)
+    params = f"{_threshold_text(tau_lo, tau_hi)};noise=off;inner=AESPerfectOracle"
+    rows = []
+    same_plaintext = 0
+
+    for number in range(1, n_trials + 1):
+        plaintext = random_bytes(rng, BLOCK_SIZE)
+        challenge = _challenge(plaintext, key, rng)
+        target = f"random_block_{number:03d}"
+
+        perfect = AESPerfectOracle(key)
+        tier1_bytes = vaudenay_attack(perfect, challenge, BLOCK_SIZE)
+        rows.append(_row(experiment, "vaudenay", perfect, seed, target, "",
+                         BLOCK_SIZE, tier1_bytes == plaintext, ""))
+
+        noise_off = _noisy_oracle(key, rng, noise=False)
+        tier2_bytes = sequential_attack(
+            noise_off, challenge, BLOCK_SIZE,
+            tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=None)
+        rows.append(_row(experiment, "sequential_noise_off", noise_off, seed,
+                         target, "", BLOCK_SIZE, tier2_bytes == plaintext, params))
+
+        same_plaintext += int(tier1_bytes == tier2_bytes == plaintext)
+    return rows, same_plaintext
 
 
-def check3_noise_off_matches_tier1(rng, tau_lo, tau_hi):
-    """D14 (3): with noise off, Tier 2 recovers the same plaintext as Tier 1."""
-    secret = bytes(rng.getrandbits(8) for _ in range(8))
-    ct = _block_ciphertext(PREFIX + secret)
+def _measured(rows: list[dict[str, object]], attack: str) -> tuple[float, int]:
+    """Mean queries and number of successes for one attack's rows."""
+    chosen = [row for row in rows if row["attack"] == attack]
+    mean_queries = statistics.mean(int(row["queries"]) for row in chosen)
+    successes = sum(int(row["success"]) for row in chosen)
+    return mean_queries, successes
 
-    o1 = FakePerfectOracle()
-    tier1_bytes = vaudenay_attack(o1, ct, 8)
 
-    o2 = GaussianTimingOracle(FakePerfectOracle(), noise=False)
-    tier2_bytes = sequential_attack(o2, ct, 8, tau_lo=tau_lo, tau_hi=tau_hi, candidate_order=None)
+def run_checks(seed: int, output_path: Path, n_trials: int = N_TRIALS,
+               words_with_bands: list[tuple[str, str]] | None = None) -> dict[str, object]:
+    """Run the three checks, write the CSV rows, return the measured summary."""
+    if words_with_bands is None:
+        words_with_bands = read_words_with_bands()
+    words = [word for word, _band in words_with_bands]
+    order_fn = make_candidate_order(words)
+    c0_dictionary = dictionary_c0(words)
 
-    rows = [
-        _row("tier2_noise_off", "vaudenay", o1, "-", "noise_off_block", "", 8,
-             o1.queries, int(tier1_bytes == secret), ""),
-        _row("tier2_noise_off", "sequential_noise_off", o2, "-", "noise_off_block", "", 8,
-             o2.queries, int(tier2_bytes == secret), f"tau_lo={tau_lo:.3f};tau_hi={tau_hi:.3f}"),
-    ]
-    return rows, tier1_bytes == tier2_bytes
+    rng = random.Random(seed)
+    # One deterministic AES key for all targets, as in the Tier 1 experiment.
+    key = random_bytes(rng, AES_KEY_SIZE)
+
+    rows1 = check1_dictionary_vs_random_block(
+        words_with_bands, order_fn, c0_dictionary, key, rng, seed, n_trials)
+    rows2 = check2_sequential_vs_fixed(
+        words_with_bands, order_fn, key, rng, seed, n_trials)
+    rows3, same_plaintext = check3_noise_off_matches_tier1(key, rng, seed, n_trials)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CSV_COLUMNS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows1 + rows2 + rows3)
+
+    dictionary_mean, dictionary_ok = _measured(rows1, "dictionary")
+    random_mean, random_ok = _measured(rows1, "random_block")
+    sequential_mean, sequential_ok = _measured(rows2, "sequential")
+    fixed_mean, fixed_ok = _measured(rows2, "fixed_sample")
+    return {
+        "seed": seed,
+        "n_trials": n_trials,
+        "c0_dictionary": c0_dictionary,
+        "c0_random_block": random_block_c0(WORD_BYTES),
+        "dictionary_mean_queries": dictionary_mean,
+        "dictionary_successes": dictionary_ok,
+        "random_block_mean_queries": random_mean,
+        "random_block_successes": random_ok,
+        "check1_dictionary_fewer_queries": dictionary_mean < random_mean,
+        "sequential_mean_queries": sequential_mean,
+        "sequential_successes": sequential_ok,
+        "fixed_sample_size": fixed_sample_size(EPSILON),
+        "fixed_mean_queries": fixed_mean,
+        "fixed_successes": fixed_ok,
+        "check2_fixed_over_sequential": fixed_mean / sequential_mean,
+        "check3_same_plaintext": same_plaintext,
+        "check3_all_same": same_plaintext == n_trials,
+    }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=int, default=20261112)
-    parser.add_argument("--output", type=Path, default=Path("results/tier2_pattern_checks.csv"))
+    parser = argparse.ArgumentParser(
+        description="Run the Tier 2 experiments and the three D14 pattern checks.")
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--trials", type=int, default=N_TRIALS)
+    parser.add_argument("--output", type=Path,
+                        default=Path("results/tier2_pattern_checks.csv"))
     args = parser.parse_args()
 
-    rng = random.Random(args.seed)
-    words = load_words()
-    tau_lo, tau_hi = wald_thresholds(EPSILON, EPSILON)
-    # Fixed-sample size calibrated for two-sided error rate EPSILON (equal-variance Gaussian test)
-    z = NormalDist().inv_cdf(1.0 - EPSILON)                         
-    n_fixed = math.ceil((2 * z * SIGMA / (MU_R - MU_W)) ** 2)
-
-    dict_rows, random_rows = check1_dictionary_vs_random_block(words, rng, tau_lo, tau_hi)
-    seq_rows, ratio, wrong_fixed = check2_sequential_vs_fixed(words, rng, tau_lo, tau_hi, n_fixed)
-    noise_rows, same_plaintext = check3_noise_off_matches_tier1(rng, tau_lo, tau_hi)
-    rows = dict_rows + random_rows + seq_rows + noise_rows
-
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=CSV_COLUMNS)
-        writer.writeheader()
-        writer.writerows(rows)
-
-    dict_mean = statistics.mean(r["queries"] for r in dict_rows)
-    random_mean = statistics.mean(r["queries"] for r in random_rows)
-
+    summary = run_checks(args.seed, args.output, args.trials)
+    n = summary["n_trials"]
     print(f"CSV: {args.output}")
-    print(f"(1) dictionary avg = {dict_mean:.1f}, random block avg = {random_mean:.1f} "
-          f"-> fewer sessions: {dict_mean < random_mean}")
-    print(f"(2) fixed/sequential query ratio = {ratio:.2f}x (Canvel: 4-5x, by pattern only); "
-          f"fixed_sample wrong on {wrong_fixed}/{N_TRIALS} words")
-    print(f"(3) noise-off Tier2 == Tier1 plaintext: {same_plaintext}")
+    print(f"C0: dictionary = {summary['c0_dictionary']:.2f}, "
+          f"random block = {summary['c0_random_block']:.0f} "
+          f"(Canvel thresholds for p = {SUCCESS_TARGET})")
+    print(f"(1) dictionary: mean {summary['dictionary_mean_queries']:.1f} queries, "
+          f"{summary['dictionary_successes']}/{n} correct; "
+          f"random block: mean {summary['random_block_mean_queries']:.1f} queries, "
+          f"{summary['random_block_successes']}/{n} correct "
+          f"-> dictionary needs fewer: {summary['check1_dictionary_fewer_queries']}")
+    print(f"(2) sequential: mean {summary['sequential_mean_queries']:.1f} queries, "
+          f"{summary['sequential_successes']}/{n} correct; "
+          f"fixed sample (n = {summary['fixed_sample_size']}): "
+          f"mean {summary['fixed_mean_queries']:.1f} queries, "
+          f"{summary['fixed_successes']}/{n} correct "
+          f"-> ratio {summary['check2_fixed_over_sequential']:.2f}x "
+          "(Canvel: 4-5x, compared by pattern only)")
+    print(f"(3) noise off: Tier 2 = Tier 1 = plaintext on "
+          f"{summary['check3_same_plaintext']}/{n} full blocks "
+          f"-> {summary['check3_all_same']}")
 
 
 if __name__ == "__main__":
