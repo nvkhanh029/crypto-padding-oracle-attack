@@ -77,6 +77,18 @@ def test_aes_gcm_uses_one_error_for_invalid_requests():
     assert errors == ["authentication failed"] * 3
 
 
+@pytest.mark.parametrize(
+    ("server_type", "args"),
+    [
+        (EncryptThenMacServer, (b"secret", bytes(32))),
+        (AesGcmServer, (b"secret",)),
+    ],
+)
+def test_servers_reject_invalid_aes_key_size(server_type, args):
+    with pytest.raises(ValueError, match="AES key must be 16, 24, or 32 bytes"):
+        server_type(*args)
+
+
 def _assert_single_byte_tampering_is_rejected(server, envelope):
     oracle = server.oracle_for(envelope)
     assert oracle.query(envelope.ciphertext) is True
