@@ -31,7 +31,7 @@ def _format_params(params: Mapping[str, object]) -> str:
     for key, value in sorted(params.items()):
         if callable(value):
             formatted = getattr(value, "__name__", type(value).__name__)
-        elif key == "dictionary":
+        elif key in {"dictionary", "words"}:
             formatted = (
                 f"{len(value)} candidates" if isinstance(value, Sized) else "configured"
             )
@@ -61,6 +61,16 @@ def run_experiment(
         raise ValueError("n_bytes must be positive")
 
     params = {} if attack_params is None else dict(attack_params)
+    max_queries = params.get("max_queries")
+    if "max_queries" in params and (
+        not isinstance(max_queries, int)
+        or isinstance(max_queries, bool)
+        or max_queries < 0
+    ):
+        raise ValueError("max_queries must be a non-negative integer")
+    attack_params = {
+        key: value for key, value in params.items() if key != "max_queries"
+    }
     params_text = _format_params(params)
     rows: list[dict[str, object]] = []
     for case in cases:
@@ -70,7 +80,7 @@ def run_experiment(
             )
         oracle.reset()
         try:
-            recovered = attack(oracle, case.ciphertext, n_bytes, **params)
+            recovered = attack(oracle, case.ciphertext, n_bytes, **attack_params)
             if not isinstance(recovered, bytes):
                 raise TypeError(f"{attack_name} must return bytes")
             if len(recovered) != n_bytes:
@@ -88,6 +98,12 @@ def run_experiment(
                 error,
             )
             success = 0
+
+        if max_queries is not None and oracle.queries > max_queries:
+            raise RuntimeError(
+                f"target {case.target!r} used {oracle.queries} queries, "
+                f"exceeding max_queries budget {max_queries}"
+            )
 
         rows.append({
             "experiment": experiment,

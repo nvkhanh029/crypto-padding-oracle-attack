@@ -1,0 +1,2 @@
+experiment,attack,oracle,seed,target,band,bytes_attacked,queries,success,params
+tier2_harness_noise_off,dictionary_attack,GaussianTimingOracle,42,aardwolf,B,8,72,1,tau_hi=4.59511985013459;tau_lo=-4.59511985013459;words=36322 candidates
