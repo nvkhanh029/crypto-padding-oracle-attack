@@ -179,8 +179,9 @@ def test_attack_rejects_last_byte_false_positive_with_noise_off():
 
 
 def test_random_blocks_have_no_last_byte_false_positive():
-    # Only the last byte is attacked: the false 02 02 padding can only start
-    # there, and the full-block regression is the previous test.
+    # Two thousand full random blocks. One sample per candidate is enough with
+    # the noise off (the sample sign already gives the decision); the last-byte
+    # confirmation still has to reject the false 02 02 padding.
     rng = random.Random(20261114)
     o = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
     wrong = 0
@@ -188,8 +189,10 @@ def test_random_blocks_have_no_last_byte_false_positive():
     for _ in range(2000):
         plain = rng.randbytes(16)
         ct = f.fake_cbc_encrypt(plain, bytes(16))[:32]
-        got = sequential_attack(o, ct, 1, tau_lo=-3.0, tau_hi=3.0)
-        if got != plain[-1:]:
+        got = sequential_attack(
+            o, ct, 16, tau_lo=-1e9, tau_hi=1e9, max_samples=1
+        )
+        if got != plain:
             wrong += 1
 
     assert wrong == 0
