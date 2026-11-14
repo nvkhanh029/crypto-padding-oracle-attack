@@ -1,0 +1,21 @@
+attack,mean_queries,success_rate
+Trigram prior,294.960,0.990000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+Trigram prior,304.570,1.000000
+NCC uniform,1024.000,0.000000
+NCC uniform,2046.670,0.020000
+NCC uniform,3577.400,0.620000
+NCC uniform,4201.550,0.990000
+NCC uniform,4225.640,0.990000
+NCC uniform,4243.100,0.990000
+NCC uniform,4540.380,0.990000
+NCC uniform,5111.780,0.990000
+Sequential Halving,16384.000,0.160000
+Sequential Halving,32768.000,0.590000
+Sequential Halving,65536.000,0.900000
+Sequential Halving,131072.000,1.000000

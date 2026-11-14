@@ -1,0 +1,16 @@
+attack,target_error,met_target,band,grid,n,success_rate,error_rate,mean_queries
+posterior_trigram,0.01,1,,1024,100,0.99,0.010000000000000009,294.96
+ncc_uniform,0.01,1,,16384,100,0.99,0.010000000000000009,4201.55
+sequential_halving,0.01,1,,131072,100,1.0,0.0,131072.0
+posterior_trigram,0.01,1,A,1024,25,1.0,0.0,290.36
+ncc_uniform,0.01,0,A,16384,25,0.96,0.040000000000000036,4365.28
+sequential_halving,0.01,1,A,131072,25,1.0,0.0,131072.0
+posterior_trigram,0.01,1,B,2048,25,1.0,0.0,397.52
+ncc_uniform,0.01,1,B,16384,25,1.0,0.0,3755.96
+sequential_halving,0.01,1,B,131072,25,1.0,0.0,131072.0
+posterior_trigram,0.01,1,C,1024,25,1.0,0.0,261.68
+ncc_uniform,0.01,1,C,65536,25,1.0,0.0,3635.44
+sequential_halving,0.01,1,C,131072,25,1.0,0.0,131072.0
+posterior_trigram,0.01,1,D,2048,25,1.0,0.0,252.16
+ncc_uniform,0.01,1,D,131072,25,1.0,0.0,3721.64
+sequential_halving,0.01,1,D,131072,25,1.0,0.0,131072.0
