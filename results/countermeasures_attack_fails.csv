@@ -1,0 +1,3 @@
+experiment,attack,oracle,seed,target,band,bytes_attacked,queries,success,params
+countermeasures_attack_fails,vaudenay,EncryptThenMacOracle,20261114,challenge_001,,16,257,0,plaintext_len=6
+countermeasures_attack_fails,vaudenay,AesGcmOracle,20261114,challenge_001,,16,257,0,plaintext_len=20

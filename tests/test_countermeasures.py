@@ -78,6 +78,14 @@ def test_aes_gcm_uses_one_error_for_invalid_requests():
     assert errors == ["authentication failed"] * 3
 
 
+def test_aes_gcm_oracle_requires_a_20_byte_message():
+    server = AesGcmServer(bytes(16))
+    envelope = server.seal(b"x" * 19, nonce=bytes(12))
+
+    with pytest.raises(ValueError, match="plaintext must be 20 bytes"):
+        server.oracle_for(envelope)
+
+
 @pytest.mark.parametrize(
     ("server_type", "args"),
     [

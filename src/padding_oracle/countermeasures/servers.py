@@ -7,10 +7,8 @@ import hmac
 import os
 from dataclasses import dataclass
 
-from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 from ..core.contracts import BLOCK_SIZE, BaseOracle
 
@@ -54,12 +52,8 @@ class EncryptThenMacServer:
         if len(iv) != BLOCK_SIZE:
             raise ValueError("CBC IV must be 16 bytes")
 
-        padder = padding.PKCS7(BLOCK_SIZE * 8).padder()
-        padded = padder.update(plaintext) + padder.finalize()
-        encryptor = Cipher(
-            algorithms.AES(self._encryption_key), modes.CBC(iv)
-        ).encryptor()
-        ciphertext = iv + encryptor.update(padded) + encryptor.finalize()
+        encryptor = AES.new(self._encryption_key, AES.MODE_CBC, iv=iv)
+        ciphertext = iv + encryptor.encrypt(pad(plaintext, BLOCK_SIZE))
         tag = hmac.digest(self._mac_key, ciphertext, hashlib.sha256)
         return Envelope(ciphertext, tag)
 
@@ -77,13 +71,9 @@ class EncryptThenMacServer:
 
     def _decrypt(self, ciphertext: bytes) -> bytes:
         iv, body = ciphertext[:BLOCK_SIZE], ciphertext[BLOCK_SIZE:]
-        decryptor = Cipher(
-            algorithms.AES(self._encryption_key), modes.CBC(iv)
-        ).decryptor()
-        padded = decryptor.update(body) + decryptor.finalize()
-        unpadder = padding.PKCS7(BLOCK_SIZE * 8).unpadder()
+        decryptor = AES.new(self._encryption_key, AES.MODE_CBC, iv=iv)
         try:
-            return unpadder.update(padded) + unpadder.finalize()
+            return unpad(decryptor.decrypt(body), BLOCK_SIZE)
         except ValueError as error:
             raise AuthenticationError() from error
 
@@ -115,7 +105,7 @@ class AesGcmServer:
 
     def __init__(self, key: bytes) -> None:
         _validate_aes_key(key)
-        self._aead = AESGCM(bytes(key))
+        self._key = bytes(key)
 
     def seal(
         self,
@@ -126,8 +116,11 @@ class AesGcmServer:
         nonce = os.urandom(_GCM_NONCE_SIZE) if nonce is None else bytes(nonce)
         if len(nonce) != _GCM_NONCE_SIZE:
             raise ValueError("AES-GCM nonce must be 12 bytes")
-        sealed = self._aead.encrypt(nonce, plaintext, associated_data)
-        return Envelope(nonce + sealed[:-_GCM_TAG_SIZE], sealed[-_GCM_TAG_SIZE:])
+        cipher = AES.new(self._key, AES.MODE_GCM, nonce=nonce)
+        if associated_data is not None:
+            cipher.update(associated_data)
+        body, tag = cipher.encrypt_and_digest(plaintext)
+        return Envelope(nonce + body, tag)
 
     def open(
         self,
@@ -142,9 +135,12 @@ class AesGcmServer:
 
         nonce = ciphertext[:_GCM_NONCE_SIZE]
         body = ciphertext[_GCM_NONCE_SIZE:]
+        cipher = AES.new(self._key, AES.MODE_GCM, nonce=nonce)
+        if associated_data is not None:
+            cipher.update(associated_data)
         try:
-            return self._aead.decrypt(nonce, body + tag, associated_data)
-        except (InvalidTag, ValueError) as error:
+            return cipher.decrypt_and_verify(body, tag)
+        except ValueError as error:
             raise AuthenticationError() from error
 
     def oracle_for(
