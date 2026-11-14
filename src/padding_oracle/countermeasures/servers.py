@@ -152,7 +152,8 @@ class AesGcmServer:
         envelope: Envelope,
         associated_data: bytes | None = None,
     ) -> AesGcmOracle:
-        """Bind an oracle adapter to the tag captured with a challenge."""
+        """Bind an oracle to the captured tag. The plaintext must be 20 bytes,
+        so nonce (12) + ciphertext (20) = 32 bytes, the input the Tier 1 attack expects."""
         if len(envelope.ciphertext) != 2 * BLOCK_SIZE:
             raise ValueError("plaintext must be 20 bytes so nonce + ciphertext = 32 bytes")
         return AesGcmOracle(self, envelope.tag, associated_data)
