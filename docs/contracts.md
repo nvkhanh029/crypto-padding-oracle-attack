@@ -1,13 +1,13 @@
 # Contracts
 
-**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH.
-**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles.
-**Audience:** all team members, and any AI tool helping with code (paste this file into it).
-**Last updated:** 06/11/2026.
+**Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
+**Purpose:** what the shared rules in the code mean, why we chose them, and how to use the fake oracles. <br>
+**Audience:** all team members, and any AI tool helping with code (paste this file into it). <br>
+**Last updated:** 13/11/2026.
 
 > **Exact names are in `src/padding_oracle/core/contracts.py`. If this document and that file disagree, the code is right.**
 
-Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist-research.md](wordlist-research.md).
+Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist-research.md](wordlist-research.md), [canvel-fact-check.md](canvel-fact-check.md).
 
 ---
 
@@ -25,10 +25,10 @@ Related documents: [tasks.md](tasks.md), [decisions.md](decisions.md), [wordlist
 |---|---|---|
 | Input | `oracle.query(ciphertext: bytes)`. The ciphertext is the IV followed by 16-byte blocks: length a multiple of 16 and at least 32. | It works like a real server. The countermeasure servers (T5: Encrypt-then-MAC, AES-GCM) use the same call, so the Tier 1 attack runs on them unchanged and we can show it fails. |
 | Perfect oracle | Returns `bool`: `True` = padding valid. | Server type 1 (different error messages). |
-| Noisy oracle | Returns `float`: one timing sample, in **time units**. It never reveals the truth. | Server type 2 (same message, small timing difference). Tiers 2 and 3 must decide from repeated samples. |
+| Noisy oracle | Returns `float`: one timing sample, in **milliseconds**. It never reveals the truth. | Server type 2 (same message, small timing difference). Tiers 2 and 3 must decide from repeated samples. |
 | Counter | `oracle.queries` goes up by exactly 1 per `query()` call. `oracle.reset()` sets it to 0. The noisy oracle's inner padding check is not counted. A rejected (malformed) ciphertext is not counted. | One place to count, so no attack can forget or count twice (D14: a query counted twice gives +100% error and Tier 1 would fail). |
 
-**Open item:** the timing unit is not confirmed. The values μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86 are inputs from `decisions.md`. Until T2 checks Canvel's PDF, this contract says "time units". No yes/no flip-noise mode for now (optional, added later if needed).
+**Timing unit:** milliseconds, as in Canvel's Fig. 3 ("Time (in 1/1000s)"). The values μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86 are inputs from `decisions.md`. No yes/no flip-noise mode for now (optional, added later if needed).
 
 ## 3. The fake oracles
 
@@ -48,7 +48,7 @@ def attack(oracle, ciphertext: bytes, n_bytes: int, **params) -> bytes
 
 - `ciphertext`: exactly two blocks (32 bytes), the previous block (or IV) plus the target block. All experiments attack one block at a time.
 - `n_bytes`: how many bytes to recover, from the end of the block: 16 (Tier 1) or 8 (the D15 word layout).
-- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column.
+- `params`: attack settings (for example δ, k). They are also written to the `params` CSV column. An attack with a query budget takes it as `max_queries`: the budget for the whole attack (all `n_bytes` bytes), the same name for every such attack.
 - Returns the recovered bytes. The harness compares them with the truth (`success`) and reads `oracle.queries` (`queries`).
 
 **The Canvel-style sequential test** (T7 provides it, T8a calls it):
@@ -57,7 +57,7 @@ def attack(oracle, ciphertext: bytes, n_bytes: int, **params) -> bytes
 def sequential_check(oracle, ciphertext: bytes, **params) -> bool
 ```
 
-It asks the noisy oracle about the same ciphertext again and again until it is confident, then returns `True` (padding judged valid) or `False`. The thresholds go in `params`; their values are T7's job. This matches our reading of Canvel's `Check4`; T2 checks it in the PDF. If T2 finds a difference, only the body changes, not the signature.
+It asks the noisy oracle about the same ciphertext again and again until it is confident, then returns `True` (padding judged valid) or `False`. The thresholds go in `params`; their values are T7's job. This matches Canvel's `Check4` (Fig. 5): it takes only the tested ciphertext, with the same thresholds for every candidate.
 
 **Stubs** (`fakes.py`): `stub_attack` (one query, returns zero bytes) lets the harness (T12a) run before any real attack exists. `stub_sequential_check` (one sample, compared with the middle of the two means) lets T8a start before T7 is merged. Replace them when the real ones are merged.
 
@@ -69,16 +69,16 @@ One row = **one attack on one target** (one random block or one test word). Succ
 |---|---|---|
 | `experiment` | Groups rows | `tier1_reproduction` |
 | `attack` | Which attack | `vaudenay`, `posterior_trigram` |
-| `oracle` | Oracle class name | `FakePerfectOracle`, `PerfectOracle` |
+| `oracle` | Oracle class name | `FakePerfectOracle`, `AESPerfectOracle` |
 | `seed` | Integer, to repeat the run | `42` |
 | `target` | The target | `random_block_017` or the secret word |
 | `band` | `A`–`D` for a word, empty for a random block | `C` |
 | `bytes_attacked` | Bytes recovered | `16` or `8` |
 | `queries` | `oracle.queries` after the attack | `2051` |
 | `success` | `1` if every attacked byte is correct, else `0` | `1` |
-| `params` | Settings as text, may be empty | `delta=...;k=...` |
+| `params` | Settings as text, may be empty | `delta=0.001;k=...` |
 
-`delta=...;k=...` only shows the format. The values of δ and k are not chosen yet. Not included on purpose: timing per query and a git-commit column (no task needs them).
+δ = 0.001 (D18). k = 0.0079 (chosen on dev with the T9 prior, D12). Not included on purpose: timing per query and a git-commit column (no task needs them).
 
 ## 6. Word list file
 
