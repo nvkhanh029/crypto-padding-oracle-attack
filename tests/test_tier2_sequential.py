@@ -1,6 +1,7 @@
 """Smoke tests for T7: the Canvel-style sequential test."""
 
 import math
+import random
 
 import pytest
 
@@ -11,6 +12,9 @@ from padding_oracle.tier2 import (
     MU_W,
     SIGMA,
     GaussianTimingOracle,
+    canvel_thresholds,
+    dictionary_c0,
+    random_block_c0,
     sequential_attack,
     sequential_check,
     wald_thresholds,
@@ -55,6 +59,28 @@ def test_wald_thresholds_are_log_odds():
     for bad in [(0.0, 0.1), (1.0, 0.1), (0.1, 0.0), (0.1, 1.0), (0.6, 0.6)]:
         with pytest.raises(ValueError):
             wald_thresholds(*bad)
+
+
+def test_canvel_thresholds_match_canvel_table_1():
+    # Canvel Table 1: C0 = 31, b = 8, p = 0.5 gives log tau- ~ -2.74,
+    # log tau+ ~ 4.86 (values checked in docs/canvel-fact-check.md).
+    tau_lo, tau_hi = canvel_thresholds(31, 8, 0.5)
+    assert tau_lo == pytest.approx(-2.74, abs=0.01)
+    assert tau_hi == pytest.approx(4.86, abs=0.01)
+    assert tau_lo < 0.0 < tau_hi
+
+    for bad in [(8, 8, 0.5), (31, 8, 0.0), (31, 8, 1.0)]:
+        with pytest.raises(ValueError):
+            canvel_thresholds(*bad)
+
+
+def test_random_block_c0():
+    assert random_block_c0(8) == 1028
+
+
+def test_dictionary_c0_counts_candidates_tried():
+    # One word and one candidate per byte: C0 is the sum over 8 bytes.
+    assert dictionary_c0(["password"]) == pytest.approx(8.0)
 
 
 def test_noise_off_decides_the_padding_correctly():
@@ -142,6 +168,33 @@ def test_attack_recovers_a_full_block_with_noise_off():
     assert recovered == plain
 
 
+def test_attack_rejects_last_byte_false_positive_with_noise_off():
+    # A wrong guess of 0x02 at the last byte turns the real 02 02 plaintext
+    # suffix into valid padding. The confirmation check must reject it.
+    plain = b"0123456789abcd" + b"\x02C"
+    ct = f.fake_cbc_encrypt(plain, bytes(16))[:32]
+    o = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
+
+    assert sequential_attack(o, ct, 16, tau_lo=-3.0, tau_hi=3.0) == plain
+
+
+def test_random_blocks_have_no_last_byte_false_positive():
+    # Only the last byte is attacked: the false 02 02 padding can only start
+    # there, and the full-block regression is the previous test.
+    rng = random.Random(20261114)
+    o = GaussianTimingOracle(f.FakePerfectOracle(), noise=False)
+    wrong = 0
+
+    for _ in range(2000):
+        plain = rng.randbytes(16)
+        ct = f.fake_cbc_encrypt(plain, bytes(16))[:32]
+        got = sequential_attack(o, ct, 1, tau_lo=-3.0, tau_hi=3.0)
+        if got != plain[-1:]:
+            wrong += 1
+
+    assert wrong == 0
+
+
 def test_attack_uses_the_candidate_order_right_to_left():
     word = b"password"
     plain = b"prefix12" + word
@@ -164,9 +217,9 @@ def test_attack_uses_the_candidate_order_right_to_left():
     assert seen[-1][1] == word[1:]
 
     # The true candidate came first every time, so each byte needed only the
-    # samples that cross tau_hi.
+    # samples that cross tau_hi; position 15 also needs one confirmation.
     per_byte = _samples_to_cross(2.0, _llr_step(MU_R))
-    assert o.queries == 8 * per_byte
+    assert o.queries == 9 * per_byte
 
 
 def test_attack_falls_back_when_no_candidate_is_accepted():
@@ -177,11 +230,16 @@ def test_attack_falls_back_when_no_candidate_is_accepted():
     def wrong_only(position, suffix):
         return [(plain[position] + 1) % 256]
 
+    # One byte only, so the retry count is not confused by a wrong suffix.
     recovered = sequential_attack(
-        o, ct, 8, tau_lo=-2.0, tau_hi=2.0, candidate_order=wrong_only
+        o, ct, 1, tau_lo=-2.0, tau_hi=2.0, candidate_order=wrong_only
     )
-    assert len(recovered) == 8
-    assert recovered != b"password"
+    assert len(recovered) == 1
+    assert recovered != plain[-1:]
+
+    # One rejected candidate per round; the list is retried 3 times.
+    per_check = _samples_to_cross(2.0, _llr_step(MU_R))
+    assert o.queries == 3 * per_check
 
 
 def test_attack_rejects_bad_inputs():
