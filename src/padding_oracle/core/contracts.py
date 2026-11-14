@@ -1,8 +1,8 @@
 """Shared contracts for the padding-oracle project (T0a).
 
-This file holds the EXACT rules every module uses: the oracle classes, the
-query counter, the result (CSV) columns, and the word-list columns. Code and
-tests import from here, so a wrong name fails straight away.
+This file holds the EXACT rules every module uses: the oracle classes and
+query counter, along with the result (CSV) columns. Code and tests import from
+here, so a wrong name fails straight away.
 
 The reasons behind these rules, and how to use the fake oracles, are in
 docs/contracts.md. If that document and this file ever disagree, THIS FILE
@@ -12,8 +12,8 @@ Guide for the team
 ------------------
 - Build and test your module against the FAKE oracles in `fakes.py`.
 - An attack never makes its own oracle: it RECEIVES one as a parameter, so the
-  same attack runs against the fake oracle, the real oracle (T3b, T6) and the
-  countermeasure servers (T5) without changing a line.
+  same attack can run against the fake oracle, the real oracle (T3b, T6), and
+  future countermeasure adapters without changing its interface.
 - When the real oracle is merged, use it for the experiments. The smoke tests
   keep using the fake one (it is fast and needs no AES library).
 - Every query goes through `oracle.query(...)`, which counts it exactly once.
@@ -47,8 +47,9 @@ CSV_COLUMNS = [
     "params",         # settings as text, e.g. "delta=0.001;k=..." (may be empty)
 ]
 
-# --- Word-list file (data/wordlist/words8.csv) -----------------------------
-# One row per word, sorted by word, lowercase a-z, UTF-8, exactly this header.
+# --- Word-list file contract ----------------------------------------------
+# The artifact may be omitted from this branch, but downstream tasks share
+# this row schema.
 WORDLIST_COLUMNS = ["word", "band", "split"]
 BANDS = ["A", "B", "C", "D"]
 SPLITS = ["train", "dev", "test"]
@@ -96,6 +97,10 @@ class BaseOracle:
 
     def _answer(self, ciphertext: bytes):
         raise NotImplementedError
+
+
+class AttackFailure(RuntimeError):
+    """The attack cannot recover its target from the observations it received."""
 
 
 class PerfectOracle(BaseOracle):
