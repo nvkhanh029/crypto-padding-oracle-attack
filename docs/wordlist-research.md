@@ -4,7 +4,7 @@
 **Purpose:** which word list we use, how it is split for testing, and how the secret word sits in the AES block. <br>
 **Audience:** owners of the word list, Tier 2 and Tier 3 tasks, and the report writer. <br>
 **Status:** decided (D11, D12 and D15 in [decisions.md](decisions.md)). <br>
-**Last updated:** 06/11/2026.
+**Last updated:** 13/11/2026.
 
 **Why this file exists:** Canvel's word list is cited only as "English Word List" [5] and cannot be rebuilt. We use a public list instead. Our numbers will differ from Canvel's; the report must say so.
 
@@ -53,8 +53,8 @@ Counts from the team's code (05/11/2026). The files are nested: each file contai
 
 - Canvel et al. (Sec. 4.3) selected only words of 8 characters, giving **712,786**. This is the count after filtering the Elcomsoft list [5], not the size of the whole list. It is far too large for a clean English dictionary, and why is unknown. In the report, write "an 8-character subset of a large word list".
 - Our list has 36,322 eight-letter words, about 20 times fewer. Fewer candidates mean fewer sessions, so our Tier 2 numbers will **not** match 166 vs 4,239. Do not reuse C₀ = 31 or 166 as expected values.
-- Canvel's analysis uses 8-byte blocks (b = 8, DES/3DES) and never mentions AES. The likely reason for 8 characters is the block size (our inference, not stated by the authors).
-- All Canvel facts here were read through a summarizer tool, not the PDF. The owner of T2 (section 6) must check Sec. 4.1, 4.3, 5.2, Table 1 and reference [5] in the PDF.
+- Canvel's analysis uses 8-byte blocks (b = 8, DES/3DES) and never mentions AES. They used 8 characters because one 8-character password then fills exactly one block (Sec. 1.1, 4.3).
+- All Canvel facts here are checked against the published paper: [canvel-fact-check.md](canvel-fact-check.md).
 
 ## 3. Block layout
 
@@ -66,9 +66,9 @@ Decided in D15. AES blocks are **16 bytes**; an 8-letter word fills half a block
 | 9–16 | The 8-letter secret word |
 
 - The attack recovers bytes from last to first, so it reaches the word first and can stop after 8 bytes. With a perfect oracle that is about 8 × 128 = 1,024 queries per block (our arithmetic, from D14).
-- Because bytes come right to left, the trigram prior should predict each letter from the letters to its **right** (a reversed trigram: build the model on reversed words). This is our inference; the Tier 3 owner checks it before coding.
+- Because bytes come right to left, the trigram prior predicts each letter from the two letters to its **right** (a reversed trigram: the context is the two bytes just right of the target, in word order).
 - The secret word is invented to measure the attack. The layout is a test setup, not a security choice.
-- **Limit:** this is the easy alignment. A real system may be harder. For example, in Canvel's test the secret shared a block with the line ending and the MAC (Sec. 5.2, to check in the PDF). Our results apply to this layout only; the report says so.
+- **Limit:** this is the easy alignment. A real system may be harder. For example, in Canvel's test the last password bytes could share a block with the line ending and the MAC, and then could not be recovered (Sec. 5.2). Our results apply to this layout only; the report says so.
 - C₀ and the session numbers are recomputed for our setup.
 
 ## 4. Test method
@@ -80,8 +80,8 @@ Decided in D12.
 **Steps:**
 1. Take the 36,322 words, each with its band (A–D).
 2. In each band: sort the words, shuffle with `random.Random(seed)`, and split by word 70% train / 10% dev / 20% test. Write the seed and the sizes in the report. Expected test sizes: about 2,550 / 1,349 / 1,666 / 1,699 words (20% of each band; our arithmetic).
-3. Fit the trigram counts on the train words only (two start symbols and one end symbol per word).
-4. Choose add-k on the dev words (for example a grid from 1e-4 to 1). Run the attack on the test words **once**.
+3. Fit the trigram counts on the train words only. The right end of each word is padded with two boundary bytes (`b"\x00"`), so the last letter is predicted from the context "end of word". No end symbol is needed: every word has exactly 8 letters.
+4. Choose add-k on the dev words, from a grid of 121 values spaced evenly on a log scale from 1e-4 to 1e2 (T9: k = 0.0079). Run the attack on the test words **once**.
 5. Test words are weighted uniformly: the result is an average over the words in the list, not over what users choose.
 6. Add one control row, "train = test", labelled "upper bound, leaks the answer".
 7. Report results per band as a side analysis (does the gain shrink for rare words? This is an assumption to test).

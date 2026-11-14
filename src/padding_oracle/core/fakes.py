@@ -23,8 +23,8 @@ from .contracts import BLOCK_SIZE, BaseOracle, NoisyOracle, PerfectOracle
 # Fixed key of the toy cipher (16 bytes). Not secret, not secure.
 FAKE_KEY = bytes(range(1, BLOCK_SIZE + 1))
 
-# Timing inputs for the fake noisy oracle, in "time units". These come from
-# docs/decisions.md; the real unit is NOT confirmed yet (T2 checks Canvel).
+# Timing inputs for the fake noisy oracle, in milliseconds (Canvel 2003,
+# Fig. 3). These come from docs/decisions.md.
 MU_R = 23.63   # mean time when the padding is Right (valid)
 MU_W = 21.57   # mean time when the padding is Wrong (invalid)
 SIGMA = 1.86   # standard deviation of the noise
