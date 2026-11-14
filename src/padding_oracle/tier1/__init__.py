@@ -1,4 +1,3 @@
-"""Tier 1: padding-oracle attacks against a perfect oracle."""
 """Tier 1 AES-CBC primitives and the perfect padding oracle."""
 
 from .aes import (
