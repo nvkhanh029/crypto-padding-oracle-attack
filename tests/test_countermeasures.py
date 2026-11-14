@@ -9,6 +9,7 @@ from padding_oracle.countermeasures import (
     AuthenticationError,
     EncryptThenMacServer,
 )
+from padding_oracle.tier1.attack import attack
 
 
 def _authentication_error_message(call):
@@ -113,3 +114,29 @@ def test_gcm_oracle_rejects_all_single_byte_tampering():
     envelope = server.seal(b"x" * 20, nonce=bytes(12))
 
     _assert_single_byte_tampering_is_rejected(server, envelope)
+
+
+def test_tier1_attack_fails_against_encrypt_then_mac():
+    server = EncryptThenMacServer(bytes(16), bytes(range(32)))
+    envelope = server.seal(b"secret", iv=bytes(16))
+    oracle = server.oracle_for(envelope)
+    assert oracle.query(envelope.ciphertext) is True
+    oracle.reset()
+
+    with pytest.raises(RuntimeError, match="could not recover plaintext byte"):
+        attack(oracle, envelope.ciphertext, 16)
+
+    assert oracle.queries >= 256
+
+
+def test_tier1_attack_fails_against_aes_gcm():
+    server = AesGcmServer(bytes(16))
+    envelope = server.seal(b"x" * 20, nonce=bytes(12))
+    oracle = server.oracle_for(envelope)
+    assert oracle.query(envelope.ciphertext) is True
+    oracle.reset()
+
+    with pytest.raises(RuntimeError, match="could not recover plaintext byte"):
+        attack(oracle, envelope.ciphertext, 16)
+
+    assert oracle.queries >= 256
