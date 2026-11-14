@@ -1,24 +1,23 @@
 """Tier 2: noisy timing oracle and Canvel-style attacks (T6-T8)."""
 
 from .noisy_oracle import MU_R, MU_W, SIGMA, GaussianTimingOracle
-from .sequential import (
-    canvel_thresholds,
-    dictionary_c0,
-    random_block_c0,
-    sequential_attack,
-    sequential_check,
-    wald_thresholds,
+from .sequential import sequential_attack, wald_thresholds
+from .dictionary_attack import (
+    DEFAULT_WORDLIST_PATH,
+    dictionary_attack,
+    load_words,
+    make_candidate_order,
 )
 
 __all__ = [
+    "DEFAULT_WORDLIST_PATH",
     "GaussianTimingOracle",
     "MU_R",
     "MU_W",
     "SIGMA",
-    "canvel_thresholds",
-    "dictionary_c0",
-    "random_block_c0",
+    "dictionary_attack",
+    "load_words",
+    "make_candidate_order",
     "sequential_attack",
-    "sequential_check",
     "wald_thresholds",
 ]
