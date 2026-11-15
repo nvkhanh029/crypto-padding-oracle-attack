@@ -64,13 +64,12 @@ def write_line_chart_pdf(
         )
 
     axis.set_xscale("log")
-    axis.set_xlabel(xlabel, fontsize=9)
-    axis.set_ylabel(ylabel, fontsize=9)
-    axis.set_title(title, fontsize=10)
-    axis.tick_params(labelsize=9)
+    axis.set_xlabel(xlabel, fontsize=12)
+    axis.set_ylabel(ylabel, fontsize=12)
+    axis.tick_params(labelsize=12)
     axis.set_ylim(-0.05, 1.05)
     axis.grid(True, which="both", alpha=0.3)
-    axis.legend(fontsize=9, loc="best")
+    axis.legend(fontsize=12, loc="best")
 
     figure.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
