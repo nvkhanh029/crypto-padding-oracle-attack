@@ -3,15 +3,12 @@
 Server type 2 says the same thing for a correct and a wrong padding, but it
 takes slightly longer when the padding is correct. This oracle turns a perfect
 padding oracle into that server: every `query()` returns ONE Gaussian timing
-sample, in milliseconds (ms), and never the true yes/no.
+sample, in "time units", and never the true yes/no.
 
-Timing inputs (from docs/decisions.md, checked against Canvel in
-docs/canvel-fact-check.md):
+Timing inputs (from docs/decisions.md; T2 confirms them against Canvel):
     mu_r  = 23.63  mean time when the padding is right
     mu_w  = 21.57  mean time when the padding is wrong
     sigma =  1.86  standard deviation of the noise
-Canvel measured sigma_R ≈ 1.48 and sigma_W ≈ 1.86, then used 1.86 for both
-(Sec. 2.2). We do the same.
 The gap between the means is about the size of the noise, so one sample is
 not enough to decide. T7, T8a, T10 and T11 ask again and again.
 
@@ -41,9 +38,9 @@ from __future__ import annotations
 
 import random
 
-from ..core.contracts import NoisyOracle, PerfectOracle
+from ..core.contracts import BaseOracle, NoisyOracle, PerfectOracle
 
-# Timing inputs, in milliseconds (see docs/decisions.md, Canvel et al. 2003).
+# Timing inputs, in "time units" (see docs/decisions.md, Canvel et al. 2003).
 MU_R = 23.63   # mean when the padding is Right (valid)
 MU_W = 21.57   # mean when the padding is Wrong (invalid)
 SIGMA = 1.86   # standard deviation of the noise
@@ -73,8 +70,8 @@ class GaussianTimingOracle(NoisyOracle):
         noise: bool = True,
     ) -> None:
         super().__init__()
-        if not isinstance(perfect_oracle, PerfectOracle):
-            raise TypeError("perfect_oracle must be a PerfectOracle")
+        if not isinstance(perfect_oracle, BaseOracle):
+            raise TypeError("perfect_oracle must be a BaseOracle (PerfectOracle)")
         if sigma < 0:
             raise ValueError("sigma must be 0 or positive")
         self._inner = perfect_oracle

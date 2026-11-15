@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** who does what, by when, and what must be ready before a task can start. <br>
 **Audience:** all team members. <br>
-**Last updated:** 12/11/2026.
+**Last updated:** 13/11/2026.
 
 | Key dates | |
 |---|---|
@@ -125,11 +125,12 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T11: NCC and Sequential Halving baselines** (Hải, due Thu 12/11). Depends on: T10, T6.
 - NCC's method: run the T10 attack with `prior = uniform`, on the same Gaussian noise. No new decision rule. **Same δ as T10 (D18).**
-- Sequential Halving, the extra baseline. Steps, for one byte with n candidates and a total query budget B:
+- Sequential Halving, the extra baseline. Like NCC, it takes `max_queries`, the query budget for the **whole word** (all `n_bytes` bytes). Each byte gets B = `max_queries` ÷ `n_bytes`. It needs B ≥ 2,048 (256 candidates × 8 rounds), so `max_queries` ≥ 16,384 for the 8-byte word; below that it raises an error. Steps, for one byte with n candidates and a byte budget B:
   1. Number of rounds R = ⌈log₂ n⌉.
   2. In each round, query every remaining candidate ⌊B / (|S| · R)⌋ times, where |S| is the number of remaining candidates.
   3. Keep the half with the highest mean timing (correct padding takes longer: μ_R > μ_W). Drop the rest.
   4. After R rounds, one candidate is left: accept it.
+- Every round rounds down, so part of B can stay unused (B = 3,000 uses 2,666). The harness records the real `oracle.queries`.
 - **Check:** Sequential Halving follows Karnin et al. (2013) (read the primary paper).
 
 **T12a: Evaluation harness** (Minh). Depends on: T0a stub, then T4, T7, T8a.
@@ -138,6 +139,8 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T12b: Tier 3 experiments and charts** (Hải, due Fri 13/11). Depends on: T10, T11, T12a, T9, and the experiment spec.
 - Experiment spec (An Khánh, Thu 12/11 morning, half a page): which runs, the query budget grid, the table layout. δ = 0.001 is fixed (D18).
+- **Budget unit: queries per word.** Every attack gets `max_queries` = the grid value. Sequential Halving runs only at grid values ≥ 16,384; lower points are skipped for it. The success-rate chart has a log x-axis and uses the measured `queries` column, not the grid value.
+- The harness checks that the measured queries per word do not go above the grid value (a run above it means a budget was ignored).
 - Run the harness with the spec: compare all methods at the same measured error rate; per band; random-bytes control (expect no gain); "train = test" control; success rate vs query budget chart.
 - **Check:** the real error rate when the prior is wrong (random bytes). The error ≤ δ guarantee only holds when the prior and noise model are correct.
 
