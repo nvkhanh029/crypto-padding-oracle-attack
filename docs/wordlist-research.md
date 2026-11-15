@@ -115,7 +115,7 @@ Full list with owners, due dates and dependencies: [tasks.md](tasks.md).
   4. If step 2 does not work, or a count differs, stop after 30 minutes and ask Vân Khánh.
   5. Write the version and the SHA-256 of each file in `data/wordlist/README.md`.
 - Keep the American eight-letter lowercase words (expect 36,322) and label each with its band A–D (expect 12,750 / 6,747 / 8,331 / 8,494). Save to a text file.
-- Split each band 70/10/20 with a fixed seed (section 4); write the seed and the three sizes down.
+- Split each band 70/10/20 with seed `42`; exact sizes and source hashes are in [`data/wordlist/README.md`](../data/wordlist/README.md).
 - Put SCOWL's copyright notice next to the list in the repo.
 - Write a few lines for the report (own words, not AI): which list, which version, how many words, licence, and that it is much smaller than Canvel's 712,786.
 - Needed before the trigram prior (T9) and the dictionary attack (T8a).
