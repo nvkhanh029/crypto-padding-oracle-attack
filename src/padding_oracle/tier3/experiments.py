@@ -22,7 +22,6 @@ import json
 import math
 import random
 import re
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable
@@ -41,7 +40,7 @@ PREFIX = b"prefix00"          # known 8-byte block prefix (D15)
 KEY = bytes(range(16))
 IV = bytes(16)
 SH_MIN_QUERIES = 16_384
-DEFAULT_GRIDS = (1024, 2048, 4096, 8192, 16_384, 32_768, 65_536, 131_072)
+DEFAULT_GRIDS = (128, 256, 512, 1024, 2048, 4096, 8192, 16_384, 32_768, 65_536, 131_072)
 DEFAULT_PER_BAND = 25
 
 
@@ -170,7 +169,7 @@ def _run_group(
     grid: int,
     params: dict[str, object],
     backend: _Backend,
-    temp_dir: Path,
+    group_dir: Path,
     index: int,
 ) -> list[dict[str, object]]:
     attack_params = dict(params)
@@ -182,6 +181,9 @@ def _run_group(
         attack_params["prior_model"] = prior_name
 
     oracle = backend.make_oracle(config.seed)
+    # One CSV per attack and grid value, kept in results/tier3/ so a crash
+    # only loses the current group file.
+    group_dir.mkdir(parents=True, exist_ok=True)
     rows = run_experiment(
         experiment=experiment,
         attack_name=attack_name,
@@ -189,7 +191,7 @@ def _run_group(
         attack=attack,
         cases=cases,
         seed=config.seed,
-        output_path=temp_dir / f"group_{index:04d}.csv",
+        output_path=group_dir / f"{experiment}_{attack_name}_{grid}.csv",
         n_bytes=8,
         attack_params=attack_params,
     )
@@ -295,7 +297,7 @@ def _matched_rows(
                 if float(row["error_rate"]) <= target_error + 1e-12
             ]
             if good:
-                chosen = min(good, key=lambda row: float(row["mean_queries"]))
+                chosen = min(good, key=lambda row: int(row["grid"]))
                 met_target = 1
             else:
                 chosen = min(
@@ -377,28 +379,28 @@ def run_experiments(config: ExperimentConfig) -> dict[str, object]:
     ]
 
     rows: list[dict[str, object]] = []
-    with tempfile.TemporaryDirectory() as temporary:
-        temp_dir = Path(temporary)
-        group_index = 0
-        for experiment, cases, prior, prior_name, scenario_methods in scenarios:
-            for attack_name, attack, params in scenario_methods:
-                for grid in config.grids:
-                    if attack_name == "sequential_halving" and grid < SH_MIN_QUERIES:
-                        continue
-                    rows.extend(_run_group(
-                        config=config,
-                        experiment=experiment,
-                        attack_name=attack_name,
-                        attack=attack,
-                        cases=cases,
-                        prior_name=prior_name if attack_name == "posterior_trigram" else "",
-                        grid=grid,
-                        params=dict(params, **({"prior": prior} if attack_name == "posterior_trigram" else {})),
-                        backend=backend,
-                        temp_dir=temp_dir,
-                        index=group_index,
-                    ))
-                    group_index += 1
+    group_dir = Path(config.output).parent / "tier3"
+    group_dir.mkdir(parents=True, exist_ok=True)
+    group_index = 0
+    for experiment, cases, prior, prior_name, scenario_methods in scenarios:
+        for attack_name, attack, params in scenario_methods:
+            for grid in config.grids:
+                if attack_name == "sequential_halving" and grid < SH_MIN_QUERIES:
+                    continue
+                rows.extend(_run_group(
+                    config=config,
+                    experiment=experiment,
+                    attack_name=attack_name,
+                    attack=attack,
+                    cases=cases,
+                    prior_name=prior_name if attack_name == "posterior_trigram" else "",
+                    grid=grid,
+                    params=dict(params, **({"prior": prior} if attack_name == "posterior_trigram" else {})),
+                    backend=backend,
+                    group_dir=group_dir,
+                    index=group_index,
+                ))
+                group_index += 1
 
     _write_rows(config.output, rows)
     summary = _summarize(rows)

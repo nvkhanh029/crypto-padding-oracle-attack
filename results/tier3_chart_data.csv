@@ -1,4 +1,7 @@
 attack,mean_queries,success_rate
+Trigram prior,127.810,0.010000
+Trigram prior,230.260,0.530000
+Trigram prior,287.450,0.950000
 Trigram prior,294.960,0.990000
 Trigram prior,304.570,1.000000
 Trigram prior,304.570,1.000000
@@ -7,6 +10,9 @@ Trigram prior,304.570,1.000000
 Trigram prior,304.570,1.000000
 Trigram prior,304.570,1.000000
 Trigram prior,304.570,1.000000
+NCC uniform,128.000,0.000000
+NCC uniform,256.000,0.000000
+NCC uniform,512.000,0.000000
 NCC uniform,1024.000,0.000000
 NCC uniform,2046.670,0.020000
 NCC uniform,3577.400,0.620000
