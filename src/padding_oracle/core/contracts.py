@@ -98,6 +98,10 @@ class BaseOracle:
         raise NotImplementedError
 
 
+class AttackFailure(RuntimeError):
+    """The attack cannot recover its target from the observations it received."""
+
+
 class PerfectOracle(BaseOracle):
     """Server type 1: tells the truth. `query` returns a bool.
 
