@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import random
 import sys
 from pathlib import Path
 
@@ -51,9 +52,11 @@ def run_stub_demo(results: Path) -> None:
 
 
 def run_tier1_demo(results: Path) -> None:
-    key = bytes(range(BLOCK_SIZE))
-    plaintext = bytes(range(BLOCK_SIZE))
-    ciphertext = aes_cbc_encrypt(plaintext, key, bytes(BLOCK_SIZE))[:2 * BLOCK_SIZE]
+    rng = random.Random(SEED)
+    key = rng.randbytes(BLOCK_SIZE)
+    iv = rng.randbytes(BLOCK_SIZE)
+    plaintext = rng.randbytes(BLOCK_SIZE)
+    ciphertext = aes_cbc_encrypt(plaintext, key, iv)[:2 * BLOCK_SIZE]
     output_path = results / "tier1_harness.csv"
     run_experiment(
         experiment="tier1_harness",

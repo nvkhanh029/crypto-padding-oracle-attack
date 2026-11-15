@@ -68,9 +68,6 @@ def run_experiment(
         or max_queries < 0
     ):
         raise ValueError("max_queries must be a non-negative integer")
-    attack_params = {
-        key: value for key, value in params.items() if key != "max_queries"
-    }
     params_text = _format_params(params)
     rows: list[dict[str, object]] = []
     for case in cases:
@@ -80,7 +77,7 @@ def run_experiment(
             )
         oracle.reset()
         try:
-            recovered = attack(oracle, case.ciphertext, n_bytes, **attack_params)
+            recovered = attack(oracle, case.ciphertext, n_bytes, **params)
             if not isinstance(recovered, bytes):
                 raise TypeError(f"{attack_name} must return bytes")
             if len(recovered) != n_bytes:

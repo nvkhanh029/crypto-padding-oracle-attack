@@ -137,7 +137,7 @@ def test_harness_resets_query_counter_for_each_case(tmp_path):
 
 def test_harness_raises_when_attack_exceeds_max_queries(tmp_path):
     def three_query_attack(oracle, ciphertext, n_bytes, **params):
-        assert "max_queries" not in params
+        assert params["max_queries"] == 2
         for _ in range(3):
             oracle.query(ciphertext)
         return bytes(n_bytes)
