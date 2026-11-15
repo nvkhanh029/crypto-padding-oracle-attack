@@ -14,14 +14,18 @@ Conjecture 1 assumes:
 `LLR_j` is the log-likelihood ratio for "padding right" after j samples. It
 starts at 0. We query again while `tau_lo < LLR_j < tau_hi`; when it reaches
 `tau_hi` we accept (True), and when it reaches `tau_lo` we reject (False).
-`tau_lo` and `tau_hi` are the logarithms of Canvel's tau- and tau+ (their
-Eq. 1-2); `wald_thresholds` builds them for chosen error rates.
+Eq. (1)-(2) in Canvel is the STOP/ACCEPT rule on their sum S_j; the thresholds
+`tau_lo` and `tau_hi` are the Wald thresholds described in Sec. 2.3
+(unnumbered). `wald_thresholds` builds them for chosen error rates, and
+`canvel_thresholds` builds them from Canvel Eq. (6)-(7) for a target success
+probability.
 
-As in Canvel, the same thresholds are used for every candidate, and there is
-no backtracking: the first accepted candidate is kept and the attack moves to
-the next byte. The fallback below only runs when no candidate is accepted at
-all (a possible false rejection); it keeps the candidate with the highest
-LLR, so the attack still returns n_bytes bytes for the harness to check.
+As in Canvel, the same thresholds are used for every candidate. At the last
+byte (position 15) an ACCEPT is confirmed once by flipping the previous byte
+of the forged block: this rejects the false 02 02 padding that a wrong
+candidate can create. If no candidate is accepted, the list is tried again,
+up to 3 rounds; after that the candidate with the highest LLR is used so the
+attack still returns n_bytes bytes for the harness to check.
 
 Block layout (D15): the ciphertext is exactly two blocks, the previous block
 (the IV or a ciphertext block) followed by the target block. Bytes are
@@ -56,8 +60,10 @@ def wald_thresholds(
         log tau+ = log((1 - epsilon_minus) / epsilon_plus)
         log tau- = log(epsilon_minus / (1 - epsilon_plus))
 
-    which are Canvel Eq. (1)-(2). The bounds must be in (0, 1) and their sum
-    below 1, so that tau_lo < 0 < tau_hi.
+    These are the Wald thresholds discussed in Canvel Sec. 2.3
+    (unnumbered); Canvel Eq. (1)-(2) is the STOP/ACCEPT rule on S_j, not
+    this formula. The bounds must be in (0, 1) and their sum below 1, so
+    that tau_lo < 0 < tau_hi.
     """
     for name, value in (
         ("epsilon_plus", epsilon_plus),
@@ -71,6 +77,82 @@ def wald_thresholds(
     tau_hi = math.log((1.0 - epsilon_minus) / epsilon_plus)
     tau_lo = math.log(epsilon_minus / (1.0 - epsilon_plus))
     return tau_lo, tau_hi
+
+
+def canvel_thresholds(
+    c0: float, b: int, p: float = 0.5
+) -> tuple[float, float]:
+    """Return Canvel's (log tau_lo, log tau_hi) for a target success p.
+
+    This uses Canvel Eq. (6)-(7) with natural logs (the formulas are also
+    in docs/canvel-fact-check.md, section 3):
+
+        log tau+ = ln C0 + ln(C0 - b) - ln b - ln ln(1/p)
+        log tau- = ln(C0 - b) - ln C0 - ln b + ln ln(1/p)
+
+    C0 is the average number of candidate trials per block and b is the
+    number of bytes. `random_block_c0(b)` gives C0 for uniform random
+    bytes; `dictionary_c0(words, candidate_order)` gives it for a word list.
+    """
+    if not isinstance(b, int) or b < 1:
+        raise ValueError("b must be a positive integer")
+    if not c0 > b:
+        raise ValueError("c0 must be greater than b")
+    if not 0.0 < p < 1.0:
+        raise ValueError("p must be between 0 and 1")
+
+    log_log = math.log(math.log(1.0 / p))
+    log_tau_hi = math.log(c0) + math.log(c0 - b) - math.log(b) - log_log
+    log_tau_lo = math.log(c0 - b) - math.log(c0) - math.log(b) + log_log
+    return log_tau_lo, log_tau_hi
+
+
+def random_block_c0(b: int) -> float:
+    """C0 for a uniform random block of b bytes: b(|Z| - 1)/2 + b."""
+    if not isinstance(b, int) or b < 1:
+        raise ValueError("b must be a positive integer")
+    return b * (256 - 1) / 2.0 + b
+
+
+def dictionary_c0(words: Iterable[str]) -> float:
+    """C0 for an 8-letter word list using T8a's candidate order.
+
+    T8a orders candidates by scanning the word list and keeping the unique
+    next letters for the already known suffix. We build that same order once
+    per suffix, then for each word add 1 + the position of its true byte in
+    the order, summed over the 8 bytes, and average over the words.
+    """
+    word_list = list(words)
+    if not word_list:
+        raise ValueError("words must not be empty")
+    for word in word_list:
+        if len(word) != 8:
+            raise ValueError(f"word {word!r} must have 8 characters")
+
+    # suffix (0..7 letters) -> candidate bytes in T8a's word-list order.
+    by_suffix: dict[str, list[int]] = {}
+    for word in word_list:
+        for k in range(8):
+            suffix = word[8 - k:] if k else ""
+            value = ord(word[7 - k])
+            order = by_suffix.setdefault(suffix, [])
+            if value not in order:
+                order.append(value)
+
+    total = 0
+    for word in word_list:
+        for position in range(15, 7, -1):
+            k = 15 - position
+            suffix = word[8 - k:] if k else ""
+            target = ord(word[position - 8])
+            order = by_suffix[suffix]
+            if target not in order:
+                raise ValueError(
+                    f"candidate order has no candidate for {word!r} "
+                    f"at position {position}"
+                )
+            total += order.index(target) + 1
+    return total / len(word_list)
 
 
 def sequential_check(
@@ -126,6 +208,12 @@ def sequential_attack(
     updated. With `candidate_order=None`, candidates are tried as 0..255
     (uniform order, the random-block baseline for T8b).
 
+    At position 15 an ACCEPT is confirmed once with `sequential_check`, after
+    flipping byte 14 of the forged block. This rejects the false 02 02
+    padding a wrong last-byte guess can create. When no candidate is
+    accepted, the whole list is tried again, up to 3 rounds; after that the
+    highest-LLR candidate is kept (and the harness checks success).
+
     `candidate_order(position, suffix)` receives the absolute block index
     (15 down to 16 - n_bytes) and the recovered bytes to its right. T8a uses
     this hook to order candidates by the word list.
@@ -153,36 +241,68 @@ def sequential_attack(
 
         suffix = bytes(plain[position + 1:])
         if candidate_order is None:
-            candidates = range(256)
+            candidates = list(range(256))
         else:
-            candidates = candidate_order(position, suffix)
-
-        best_value: int | None = None
-        best_llr = -math.inf
+            candidates = list(candidate_order(position, suffix))
+        if not candidates:
+            raise ValueError("candidate_order yielded no candidates")
         for value in candidates:
             if not isinstance(value, int) or not 0 <= value <= 255:
                 raise ValueError("candidate bytes must be integers 0..255")
-            forged[position] = previous[position] ^ value ^ pad
-            accepted, log_lr = _run_sequential(
-                oracle,
-                bytes(forged) + target,
-                tau_lo,
-                tau_hi,
-                mu_r,
-                mu_w,
-                sigma,
-                max_samples,
-            )
-            if accepted:
-                plain[position] = value
+
+        best_value: int | None = None
+        best_llr = -math.inf
+        accepted_value: int | None = None
+
+        # Canvel's DecryptByte4 tests the whole candidate list again when no
+        # candidate is accepted. Three rounds are enough in our runs.
+        for _round in range(3):
+            for value in candidates:
+                forged[position] = previous[position] ^ value ^ pad
+                accepted, log_lr = _run_sequential(
+                    oracle,
+                    bytes(forged) + target,
+                    tau_lo,
+                    tau_hi,
+                    mu_r,
+                    mu_w,
+                    sigma,
+                    max_samples,
+                )
+                if accepted:
+                    if position == BLOCK_SIZE - 1:
+                        # A wrong guess can make the last byte 0x02 and turn
+                        # the original plaintext 0x02 0x02 into valid padding.
+                        # Flip byte 14: a true 0x01 padding stays valid, the
+                        # false 0x02 0x02 padding does not.
+                        forged[position - 1] ^= 0x01
+                        confirmed = sequential_check(
+                            oracle,
+                            bytes(forged) + target,
+                            tau_lo=tau_lo,
+                            tau_hi=tau_hi,
+                            mu_r=mu_r,
+                            mu_w=mu_w,
+                            sigma=sigma,
+                            max_samples=max_samples,
+                        )
+                        forged[position - 1] ^= 0x01
+                        if not confirmed:
+                            continue
+                    accepted_value = value
+                    break
+                if log_lr > best_llr:
+                    best_llr = log_lr
+                    best_value = value
+            if accepted_value is not None:
                 break
-            if log_lr > best_llr:
-                best_llr = log_lr
-                best_value = value
+
+        if accepted_value is not None:
+            plain[position] = accepted_value
         else:
-            # No candidate was accepted (possible false rejection). Canvel's
-            # loop has no backtracking; keep the most likely candidate so the
-            # attack still returns a full result for the harness.
+            # No candidate passed after 3 rounds. Canvel has no backtracking;
+            # keep the highest-LLR candidate so the attack still returns a
+            # full result for the harness to check.
             if best_value is None:
                 raise ValueError("candidate_order yielded no candidates")
             plain[position] = best_value
