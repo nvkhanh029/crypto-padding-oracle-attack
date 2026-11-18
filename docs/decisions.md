@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** what we decided, why, what we will build, and which sources we use. When a decision changes, this file is updated. <br>
 **Audience:** all team members. <br>
-**Last updated:** 11/11/2026. **Deadline:** 15/11/2026.
+**Last updated:** 19/11/2026. **Deadline:** 15/11/2026.
 
 > The report itself must be written by the team, not by AI. This file is a planning document only. For the story of the report (why this topic, why a noisy oracle, what "Countermeasures" means, what each tier means, where the cryptography is, the report structure), see [report-notes.md](report-notes.md). Every Canvel fact we use, with its page in the paper: [canvel-fact-check.md](canvel-fact-check.md).
 
@@ -67,7 +67,7 @@ In the report, this question is stated in one or two sentences under "Introducti
 |---|---|---|---|
 | 1 | Reproduce Vaudenay (2002) with a perfect oracle on AES-CBC. Measure queries per byte and per block over 100 random blocks (expect about 128 per byte, about 2048 per AES block; pass/fail by D14). Optional cross-check: compare our mean and spread with Jüttner (2012), scaled about 2× for 16-byte blocks; cite him only if we use this. Fix with Encrypt-then-MAC and AES-GCM, and show the attack fails (D13) | 15+ (main reproduction, checked by number, D14) | 1–4 |
 | 2 | Reproduce Canvel et al. (2003) `DecryptBlock4` in simulation: Gaussian timing in ms (μ_R ≈ 23.63, μ_W ≈ 21.57, σ ≈ 1.86), dictionary = all SCOWL eight-letter words (D11), uniform order, block layout D15. Compare with Canvel's C₀ = 31 and his calculated 166 vs 4,239 sessions at 50% success (our dictionary is much smaller, so expect different numbers). Also provides the noisy-oracle simulator and baseline (b) for Tier 3 | Baseline for Tier 3; second reproduction, checked by pattern (D14) | 4–6 |
-| 3 | Improvement: accept a candidate when its posterior > 1 − δ; keep one shared posterior and reuse old samples. Prior: character trigram with add-k smoothing (remember space and punctuation), fitted on the train split only (D12). The attack recovers bytes right to left (D15), so the prior predicts each letter from the letters to its right (a reversed trigram: a normal trigram fitted on reversed words; checked by the Tier 3 owner). Compare with Tier 2, NCC's method (uniform prior, same Gaussian noise) and Sequential Halving, **at the same error rate** | 17+ | 6–8 |
+| 3 | Improvement: accept a candidate when its posterior > 1 − δ; keep one shared posterior and reuse old samples. Prior: character trigram with add-k smoothing (remember space and punctuation), fitted on the train split only (D12). The attack recovers bytes right to left (D15), so the prior predicts each letter from the letters to its right (a reversed trigram: the context is the two bytes just right of the target, in word order). Compare with Tier 2, NCC's method (uniform prior, same Gaussian noise) and Sequential Halving, **at the same error rate** | 17+ | 6–8 |
 | + | Only if time: backtracking on wrong bytes; JSON/cookie plaintexts; reproduce NCC numbers (about 500k vs 50k queries at 40% error) | — | — |
 | — | Write report, check numbers and references | — | 8–10 |
 
@@ -104,7 +104,7 @@ Note: Canvel's list is cited only as "English Word List" [5] (Elcomsoft, homepag
 3. E. Sohl (NCC Group). "Exploiting Noisy Oracles with Bayesian Inference." Blog post, 23/06/2023. [Link](https://www.nccgroup.com/research/exploiting-noisy-oracles-with-bayesian-inference/)
 4. A. C. Jüttner. Bachelor thesis on padding attacks and CrypTool 2, 2012. Not peer-reviewed. Optional Tier 1 cross-check (D14). [PDF](https://www.cryptool.org/media/publications/theses/BA_Juettner_Padding-Oracle-Attack.pdf)
 
-### 6.2 Stopping-rule theory (for Tiers 2–3 and the explainer sheet)
+### 6.2 Stopping-rule theory (for Tiers 2–3)
 
 15. A. Wald. *Sequential Analysis*. Wiley, 1947 (Dover reprint). SPRT and the threshold formulas A = log((1−β)/α), B = log(β/(1−α)).
 16. A. Wald, J. Wolfowitz. "Optimum Character of the Sequential Probability Ratio Test." Ann. Math. Statist., 1948. SPRT needs the fewest samples on average for given error rates. (PDF not fetched yet.)
