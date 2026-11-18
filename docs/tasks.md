@@ -3,7 +3,7 @@
 **Project:** Padding Oracle Attacks on AES-CBC. Introduction to Cryptography, group midterm project, USTH. <br>
 **Purpose:** who does what, by when, and what must be ready before a task can start. <br>
 **Audience:** all team members. <br>
-**Last updated:** 13/11/2026.
+**Last updated:** 19/11/2026.
 
 | Key dates | |
 |---|---|
@@ -18,7 +18,7 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 | Member | Tasks |
 |---|---|
-| Vân Khánh (Lead) | T0a, T0b, E1, M1 |
+| Vân Khánh (Lead) | T0a, T0b, M1 |
 | An Khánh | T2, T10, R4 |
 | Duy (report owner) | R1, R2, R3, R5, R6 |
 | Kiên | T3, T4, T9 |
@@ -63,9 +63,6 @@ Related documents: [decisions.md](decisions.md), [wordlist-research.md](wordlist
 
 **T0b: Repo, CI, smoke tests, AI rules file** (Vân Khánh, due Fri 06/11). Depends on: T0a.
 - Repo, CI with 3–5 smoke tests (create a block, run the Tier 1 attack on a small case, write an output file), AI rules file, Python version and requirements.
-
-**E1: Explainer sheet** (Vân Khánh, due Fri 13/11). Depends on: the Tier 3 results taking shape.
-- One page: what the project does, architecture, who owns which part, 5–6 likely questions with suggested answers. Everyone reads it.
 
 **M1: Final merge and demo build** (Vân Khánh, due Sat 14/11). Depends on: all code tasks.
 - Merge, run everything from a clean checkout, fix only blocking problems.
