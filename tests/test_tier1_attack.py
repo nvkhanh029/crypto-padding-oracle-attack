@@ -2,6 +2,7 @@
 
 import pytest
 
+from padding_oracle.core.contracts import AttackFailure, BaseOracle
 from padding_oracle.tier1.aes import aes_cbc_encrypt
 from padding_oracle.tier1.attack import attack
 from padding_oracle.tier1.oracle import AESPerfectOracle
@@ -76,3 +77,19 @@ def test_vaudenay_attack_rejects_accidental_valid_0202_padding():
 
     assert attack(AESPerfectOracle(TEST_KEY), challenge, 16) == plaintext
 
+
+class AlwaysInvalidOracle(BaseOracle):
+    """An oracle that always says the padding is invalid (no guess can work)."""
+
+    def _answer(self, ciphertext: bytes) -> bool:
+        return False
+
+
+def test_attack_raises_attack_failure_when_no_guess_works():
+    challenge = make_challenge(bytes(range(16)), bytes(16))
+    oracle = AlwaysInvalidOracle()
+
+    with pytest.raises(AttackFailure, match="could not recover plaintext byte"):
+        attack(oracle, challenge, 16)
+
+    assert oracle.queries == 256
