@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import MutableSequence
-from padding_oracle.core.contracts import BLOCK_SIZE, BaseOracle
+from padding_oracle.core.contracts import BLOCK_SIZE, AttackFailure, BaseOracle
 
 
 def attack(oracle: BaseOracle, ciphertext: bytes, n_bytes: int, **params) -> bytes:
@@ -10,7 +10,7 @@ def attack(oracle: BaseOracle, ciphertext: bytes, n_bytes: int, **params) -> byt
 
     Optional byte_query_counts receives measured oracle-query deltas, from
     right to left. Query accounting remains owned by oracle.queries.
-    Raises RuntimeError if no guess gives valid padding for a byte 
+    Raises AttackFailure (a RuntimeError) if no guess gives valid padding for a byte
     (for example, against Encrypt-then-MAC or AES-GCM, where the oracle always says invalid).
     """
     if not isinstance(ciphertext, (bytes, bytearray)):
@@ -63,7 +63,7 @@ def attack(oracle: BaseOracle, ciphertext: bytes, n_bytes: int, **params) -> byt
             break
 
         if not found:
-            raise RuntimeError(f"could not recover plaintext byte at offset {index}")
+            raise AttackFailure(f"could not recover plaintext byte at offset {index}")
         if byte_query_counts is not None:
             byte_query_counts.append(oracle.queries - before)
 
